@@ -33,7 +33,7 @@ public class Server{
 
 		public void run() {
 			try(ServerSocket mysocket = new ServerSocket(5555);){
-		    System.out.println("Server is waiting for a client!");
+		    System.out.println("Serverr is waiting for a client!");
 
 		    while(true) {
 
