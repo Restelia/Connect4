@@ -230,6 +230,7 @@ public class Server{
 										ObjectOutputStream startingPlayerOut = clientOutputs.get("client" + hostId);
 										if (startingPlayerOut != null) {
 											startingPlayerOut.writeObject(new Message(MessageType.TURN, "client" + hostId, null));
+											//startingPlayerOut.writeObject(new Message(MessageType.TIMER_UPDATE, String.valueOf(game.getTurnDuration()), null));
 										}
 									} else {
 										out.writeObject(new Message(MessageType.TEXT, "No games available to join right now.", null));
@@ -272,8 +273,16 @@ public class Server{
 									int opponent = game.getOtherPlayer(count);
 									ObjectOutputStream opponentOut = clientOutputs.get("client" + opponent);
 									ObjectOutputStream currentOut = clientOutputs.get("client" + count);
-									if (opponentOut != null) opponentOut.writeObject(boardUpdateMessage);
-									if (currentOut != null) currentOut.writeObject(boardUpdateMessage);
+
+									if (game.getCurrentPlayer() == count) {
+										opponentOut.writeObject(new Message(MessageType.TIMER_UPDATE, String.valueOf(game.getTurnDuration()), null));
+									} else {
+										currentOut.writeObject(new Message(MessageType.TIMER_UPDATE, String.valueOf(game.getTurnDuration()), null));
+									}
+
+									if (opponentOut != null) {opponentOut.writeObject(boardUpdateMessage);}
+									if (currentOut != null) {currentOut.writeObject(boardUpdateMessage);}
+
 
 									// Check for a win
 									if (game.checkWinner()) {
@@ -326,6 +335,20 @@ public class Server{
 										// Switch turn to opponent
 										game.switchTurn();
 										int newTurnPlayer = game.getCurrentPlayer();
+
+										if (game.getCurrentPlayer() == count) {
+                                            try {
+												currentOut.writeObject(new Message(MessageType.TIMER_UPDATE, String.valueOf(game.getTurnDuration()), null));
+                                            } catch (IOException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        } else {
+                                            try {
+                                                opponentOut.writeObject(new Message(MessageType.TIMER_UPDATE, String.valueOf(game.getTurnDuration()), null));
+                                            } catch (IOException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        }
 
 										// Send updated board and new turn
 										String updatedBoard = game.getBoardString();

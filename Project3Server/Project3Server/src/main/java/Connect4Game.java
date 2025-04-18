@@ -15,6 +15,10 @@ public class Connect4Game {
         this.turnDurationSeconds = seconds;
     }
 
+    public int getTurnDuration() {
+        return this.turnDurationSeconds;
+    }
+
     public void resetTimeouts() {
         consecutiveTimeouts = 0;
     }
@@ -71,7 +75,6 @@ public class Connect4Game {
     private static final int ROWS = 6;
     private static final int COLS = 7;
     private int[][] board = new int[ROWS][COLS];  // 0 = empty, 1 = player 1, 2 = player 2
-    private boolean gameInProgress = true;
 
     public Connect4Game() {
         for (int row = 0; row < ROWS; row++) {
