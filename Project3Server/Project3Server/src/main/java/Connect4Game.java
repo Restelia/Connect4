@@ -1,8 +1,66 @@
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class Connect4Game {
     private int player1;
     private int player2;
     private int currentPlayer;
+    private int turnDurationSeconds = 30; // default
+    private Timer turnTimer;
+    private Runnable onTurnTimeout;
     private boolean gameFinished = false;
+    private int consecutiveTimeouts = 0;
+
+    public void setTurnDuration(int seconds) {
+        this.turnDurationSeconds = seconds;
+    }
+
+    public void resetTimeouts() {
+        consecutiveTimeouts = 0;
+    }
+
+    public void incrementTimeouts() {
+        consecutiveTimeouts++;
+    }
+
+    public int getConsecutiveTimeouts() {
+        return consecutiveTimeouts;
+    }
+
+    public void startTurnTimer(Runnable timeoutCallback) {
+        cancelTurnTimer(); // Clear any previous timer
+        this.onTurnTimeout = timeoutCallback;
+
+        turnTimer = new Timer();
+
+        final int[] remaining = {turnDurationSeconds};
+
+        // Logging countdown every second
+        turnTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (remaining[0] <= 0) {
+                    System.out.println("[Timer] Time's up!");
+                    cancel();
+                    if (onTurnTimeout != null) {
+                        onTurnTimeout.run();
+                    }
+                } else {
+                    System.out.println("[Timer] " + remaining[0] + "s remaining...");
+                    remaining[0]--;
+                }
+            }
+        }, 0, 1000);
+    }
+
+    public void cancelTurnTimer() {
+        if (turnTimer != null) {
+            turnTimer.cancel();
+            turnTimer.purge();
+            turnTimer = null;
+        }
+    }
+
 
     public void setPlayers(int p1, int p2) {
         this.player1 = p1;

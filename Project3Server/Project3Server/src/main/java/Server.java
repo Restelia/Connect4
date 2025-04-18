@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -22,6 +23,7 @@ public class Server{
 	Map<Integer, Connect4Game> activeGames = new HashMap<>();  // Track active games by gameId
 	Map<Integer, Integer> rematchRequests = new HashMap<>();
 	Map<Integer, Integer> playerToGameId = new HashMap<>();
+	Map<Integer, Integer> waitingPlayerTimers = new HashMap<>();
 	int gameIdCounter = 1;
 
 	Server(Consumer<Message> call){
@@ -93,6 +95,62 @@ public class Server{
 				}
 			}
 
+			private void handleTurnTimeout(Connect4Game game, int nextPlayer, int gameId) {
+				System.out.println("⏰ Player " + nextPlayer + " timed out.");
+
+				game.incrementTimeouts();
+
+				if (game.getConsecutiveTimeouts() >= 2) {
+					System.out.println("⚠️ Both players timed out. Ending game as a draw.");
+					Message drawMsg = new Message(MessageType.GAME_OVER, "Game ended in a draw due to inactivity.", null);
+
+					ObjectOutputStream p1Out = clientOutputs.get("client" + game.getCurrentPlayer());
+					ObjectOutputStream p2Out = clientOutputs.get("client" + game.getOtherPlayer(game.getCurrentPlayer()));
+
+					try {
+						if (p1Out != null) p1Out.writeObject(drawMsg);
+						if (p2Out != null) p2Out.writeObject(drawMsg);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+
+					activeGames.remove(gameId);
+					return;
+				}
+
+				game.switchTurn();
+				int newTurnPlayer = game.getCurrentPlayer();
+
+				String updatedBoard = game.getBoardString();
+				Message updateMsg = new Message(MessageType.BOARD_UPDATE, updatedBoard, null);
+				Message newTurnMsg = new Message(MessageType.TURN, "client" + newTurnPlayer, null);
+
+				ObjectOutputStream timedOutOut = clientOutputs.get("client" + nextPlayer);
+				ObjectOutputStream newPlayerOut = clientOutputs.get("client" + newTurnPlayer);
+				ObjectOutputStream otherPlayerOut = clientOutputs.get("client" + game.getOtherPlayer(newTurnPlayer));
+
+				try {
+					if (timedOutOut != null) {
+						timedOutOut.writeObject(new Message(MessageType.TEXT, "You ran out of time. Turn skipped.", null));
+						timedOutOut.writeObject(newTurnMsg);
+					}
+					if (newPlayerOut != null) {
+						newPlayerOut.writeObject(updateMsg);
+						newPlayerOut.writeObject(newTurnMsg);
+					}
+					if (otherPlayerOut != null && otherPlayerOut != newPlayerOut) {
+						otherPlayerOut.writeObject(updateMsg);
+						otherPlayerOut.writeObject(newTurnMsg);
+					}
+				} catch (Exception ex) {
+					ex.printStackTrace();
+				}
+
+				// 👇 call the timer again for the next turn
+				int finalNewTurnPlayer = newTurnPlayer;
+				game.startTurnTimer(() -> handleTurnTimeout(game, finalNewTurnPlayer, gameId));
+			}
+
 			public void run(){
 
 				try {
@@ -124,7 +182,14 @@ public class Server{
 
 								case CREATE_GAME:
 									callback.accept(new Message(MessageType.TEXT, "Client #" + count + " created a game.", null));
+									int turnTime = 30;
+
+									try {
+										turnTime = Integer.parseInt(message.getMessage());
+									} catch (NumberFormatException ignored) {}
+
 									waitingPlayers.add(count);
+									waitingPlayerTimers.put(count, turnTime); // ✅ store timer
 									out.writeObject(new Message(MessageType.TEXT, "Game created. Waiting for opponent...", null));
 									break;
 
@@ -140,8 +205,11 @@ public class Server{
 									callback.accept(new Message(MessageType.TEXT, "Client #" + count + " wants to join a game.", null));
 									if (!waitingPlayers.isEmpty()) {
 										int hostId = waitingPlayers.poll();
+										int turnDuration = waitingPlayerTimers.getOrDefault(hostId, 30); // ✅ get timer
+										waitingPlayerTimers.remove(hostId); // ✅ clean up
 
 										Connect4Game game = new Connect4Game();
+										game.setTurnDuration(turnDuration);
 										int gameId = gameIdCounter++;
 										activeGames.put(gameId, game);
 										playerToGameId.put(hostId, gameId);
@@ -187,41 +255,106 @@ public class Server{
 									}
 
 									boolean valid = game.makeMove(column, count);
+									game.cancelTurnTimer(); // Cancel timer for current turn
+
 									if (!valid) {
 										callback.accept(new Message(MessageType.TEXT, "Invalid move. Try again.", null));
 										break;
 									}
 
+									// Reset timeout count after a valid move
+									game.resetTimeouts();
+
+									// Send updated board to both players
 									String boardString = game.getBoardString();
-									// Send the BOARD_UPDATE message to both players
 									Message boardUpdateMessage = new Message(MessageType.BOARD_UPDATE, boardString, null);
 
 									int opponent = game.getOtherPlayer(count);
 									ObjectOutputStream opponentOut = clientOutputs.get("client" + opponent);
 									ObjectOutputStream currentOut = clientOutputs.get("client" + count);
-									if (opponentOut != null) {
-										opponentOut.writeObject(boardUpdateMessage);
-									}
-									if (currentOut != null) {
-										currentOut.writeObject(boardUpdateMessage);
-									}
+									if (opponentOut != null) opponentOut.writeObject(boardUpdateMessage);
+									if (currentOut != null) currentOut.writeObject(boardUpdateMessage);
 
-									// Don't automatically mark as finished here
+									// Check for a win
 									if (game.checkWinner()) {
 										out.writeObject(new Message(MessageType.GAME_OVER, "You win!", null));
 										if (opponentOut != null)
 											opponentOut.writeObject(new Message(MessageType.GAME_OVER, "You lose!", null));
-										// No automatic game finish here
-									} else {
-										game.switchTurn();
-										int nextPlayer = game.getCurrentPlayer();
-
-										ObjectOutputStream nextOut = clientOutputs.get("client" + nextPlayer);
-										if (nextOut != null) {
-											nextOut.writeObject(new Message(MessageType.TURN, "client" + nextPlayer, null));
-										}
+										activeGames.remove(gameId);
+										break;
 									}
+
+									// Switch turn and notify both players
+									game.switchTurn();
+									int nextPlayer = game.getCurrentPlayer();
+									ObjectOutputStream nextOut = clientOutputs.get("client" + nextPlayer);
+									ObjectOutputStream otherOut = clientOutputs.get("client" + game.getOtherPlayer(nextPlayer));
+
+									Message turnMessage = new Message(MessageType.TURN, "client" + nextPlayer, null);
+									if (nextOut != null) nextOut.writeObject(turnMessage);
+									if (otherOut != null && otherOut != nextOut) otherOut.writeObject(turnMessage);
+
+									// Start timer for next turn
+									game.startTurnTimer(() -> {
+										System.out.println("⏰ Player " + nextPlayer + " timed out.");
+
+										game.incrementTimeouts();
+
+										if (game.getConsecutiveTimeouts() >= 2) {
+											System.out.println("⚠️ Both players timed out. Ending game as a draw.");
+											Message drawMsg = new Message(MessageType.GAME_OVER, "Game ended in a draw due to inactivity.", null);
+
+											ObjectOutputStream p1Out = clientOutputs.get("client" + game.getCurrentPlayer());
+											ObjectOutputStream p2Out = clientOutputs.get("client" + game.getOtherPlayer(nextPlayer));
+
+											try {
+												if (p1Out != null) p1Out.writeObject(drawMsg);
+												if (p2Out != null) p2Out.writeObject(drawMsg);
+											} catch (IOException e) {
+												e.printStackTrace();
+											}
+
+											activeGames.remove(gameId);
+											return;
+										}
+
+										// Switch turn to opponent
+										game.switchTurn();
+										int newTurnPlayer = game.getCurrentPlayer();
+
+										// Send updated board and new turn
+										String updatedBoard = game.getBoardString();
+										Message updateMsg = new Message(MessageType.BOARD_UPDATE, updatedBoard, null);
+										Message newTurnMsg = new Message(MessageType.TURN, "client" + newTurnPlayer, null);
+
+										ObjectOutputStream timedOutOut = clientOutputs.get("client" + nextPlayer);
+										ObjectOutputStream newPlayerOut = clientOutputs.get("client" + newTurnPlayer);
+										ObjectOutputStream otherPlayerOut = clientOutputs.get("client" + game.getOtherPlayer(newTurnPlayer));
+
+										try {
+											if (timedOutOut != null) {
+												timedOutOut.writeObject(new Message(MessageType.TEXT, "You ran out of time. Turn skipped.", null));
+												timedOutOut.writeObject(newTurnMsg);
+											}
+											if (newPlayerOut != null) {
+												newPlayerOut.writeObject(updateMsg);
+												newPlayerOut.writeObject(newTurnMsg);
+											}
+											if (otherPlayerOut != null && otherPlayerOut != newPlayerOut) {
+												otherPlayerOut.writeObject(updateMsg);
+												otherPlayerOut.writeObject(newTurnMsg);
+											}
+										} catch (Exception ex) {
+											ex.printStackTrace();
+										}
+
+										// Restart timer for next player
+										int finalNextPlayer = nextPlayer; // because lambdas need final vars
+										game.startTurnTimer(() -> handleTurnTimeout(game, finalNextPlayer, gameId));
+									});
+
 									break;
+
 
 								case RETURN_TO_LOBBY:
 									// This is where the game is marked as finished manually when the user clicks "Return to Lobby"
