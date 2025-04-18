@@ -2,6 +2,7 @@ public class Connect4Game {
     private int player1;
     private int player2;
     private int currentPlayer;
+    private boolean gameFinished = false;
 
     public void setPlayers(int p1, int p2) {
         this.player1 = p1;
@@ -43,6 +44,16 @@ public class Connect4Game {
             }
         }
         return false;
+    }
+
+    public void reset() {
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                board[row][col] = 0;
+            }
+        }
+        this.gameInProgress = true;
+        this.currentPlayer = player1; // Or randomize if you want
     }
 
     private boolean checkDirection(int row, int col) {
@@ -112,11 +123,11 @@ public class Connect4Game {
         return (playerId == player1) ? player2 : player1;
     }
 
-    public boolean isGameInProgress() {
-        return gameInProgress;
+    public void setGameFinished(boolean finished) {
+        this.gameFinished = finished;
     }
 
-    public void endGame() {
-        gameInProgress = false;
+    public boolean isGameFinished() {
+        return gameFinished;
     }
 }

@@ -13,5 +13,9 @@ public enum MessageType {
     PLAYER_ID,
     TURN,
     BOARD_UPDATE,
-    GAME_OVER
+    GAME_OVER,
+    REMATCH,
+    REMATCH_ACCEPTED,
+    RETURN_TO_LOBBY,
+    CANCEL_GAME_CREATION
 }
