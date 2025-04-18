@@ -104,14 +104,15 @@ public class Connect4Game {
         return false;
     }
 
-    public void reset() {
+    public boolean checkDraw() {
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
-                board[row][col] = 0;
+                if (board[row][col] == 0) {
+                    return false;
+                }
             }
         }
-        this.gameInProgress = true;
-        this.currentPlayer = player1; // Or randomize if you want
+        return true;
     }
 
     private boolean checkDirection(int row, int col) {

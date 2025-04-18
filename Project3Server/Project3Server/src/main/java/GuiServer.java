@@ -42,7 +42,6 @@ public class GuiServer extends Application{
 	public void start(Stage primaryStage) throws Exception {
 		serverConnection = new Server(new MyConsumer());
 
-
 		listItems = new ListView<String>();
 
 		sceneMap = new HashMap<String, Scene>();

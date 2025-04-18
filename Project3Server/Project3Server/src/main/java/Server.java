@@ -280,7 +280,12 @@ public class Server{
 										out.writeObject(new Message(MessageType.GAME_OVER, "You win!", null));
 										if (opponentOut != null)
 											opponentOut.writeObject(new Message(MessageType.GAME_OVER, "You lose!", null));
-										activeGames.remove(gameId);
+										break;
+									}
+									else if (game.checkDraw()) {
+										out.writeObject(new Message(MessageType.GAME_OVER, "Draw!", null));
+										if (opponentOut != null)
+											opponentOut.writeObject(new Message(MessageType.GAME_OVER, "Draw!", null));
 										break;
 									}
 
