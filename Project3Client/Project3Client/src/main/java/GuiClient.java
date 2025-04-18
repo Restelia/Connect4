@@ -46,9 +46,9 @@ public class GuiClient extends Application {
 						break;
 					case GAME_STARTED:
 						System.out.println("GAME_STARTED received! Switching to game scene.");
-						if (!sceneMap.containsKey("game")) {
+						//if (!sceneMap.containsKey("game")) {
 							createGameGui();
-						}
+						//}
 						showGameScene();
 						break;
 					case BOARD_UPDATE:
@@ -63,6 +63,16 @@ public class GuiClient extends Application {
 						break;
 					case GAME_OVER:
 						showGameOver(msg.getMessage()); // Game over message
+						break;
+					case REMATCH_ACCEPTED:
+						System.out.println("Rematch accepted!");
+						if (!sceneMap.containsKey("game")) {
+							createGameGui();
+						}
+						resetBoard();
+						isMyTurn = false;
+						turnLabel.setText("Waiting for opponent...");
+						mainStage.setScene(sceneMap.get("game"));
 						break;
 					default:
 						listItems2.getItems().add(msg.toString());
@@ -132,7 +142,16 @@ public class GuiClient extends Application {
 	}
 
 	public void showWaitingScreen() {
-		VBox box = new VBox(10, new Label("Waiting for opponent..."));
+		VBox box = new VBox(10);
+		Label label = new Label("Waiting for opponent...");
+		Button backBtn = new Button("Back to Lobby");
+
+		backBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.CANCEL_GAME_CREATION, "", null));
+			mainStage.setScene(sceneMap.get("lobby"));
+		});
+
+		box.getChildren().addAll(label, backBtn);
 		box.setAlignment(Pos.CENTER);
 		sceneMap.put("waiting", new Scene(box, 400, 300));
 		mainStage.setScene(sceneMap.get("waiting"));
@@ -141,6 +160,7 @@ public class GuiClient extends Application {
 	public void showGameListScreen() {
 		gameListView = new ListView<>();
 		Button joinSelectedBtn = new Button("Join Selected Game");
+		Button backBtn = new Button("Back to Lobby");
 
 		joinSelectedBtn.setOnAction(e -> {
 			String selected = gameListView.getSelectionModel().getSelectedItem();
@@ -149,7 +169,11 @@ public class GuiClient extends Application {
 			}
 		});
 
-		VBox box = new VBox(10, new Label("Available Games:"), gameListView, joinSelectedBtn);
+		backBtn.setOnAction(e -> {
+			mainStage.setScene(sceneMap.get("lobby"));
+		});
+
+		VBox box = new VBox(10, new Label("Available Games:"), gameListView, joinSelectedBtn, backBtn);
 		box.setPadding(new Insets(10));
 		sceneMap.put("gameList", new Scene(box, 400, 300));
 		mainStage.setScene(sceneMap.get("gameList"));
@@ -232,8 +256,39 @@ public class GuiClient extends Application {
 		}
 	}
 
+	public void resetBoard() {
+		for (int row = 0; row < 6; row++) {
+			for (int col = 0; col < 7; col++) {
+				Button cell = (Button) getNodeFromGridPane(gameBoard, col, row);
+				if (cell != null) {
+					cell.setStyle("-fx-background-color: lightgray;");
+				}
+			}
+		}
+	}
+
 	public void showGameOver(String winner) {
-		VBox box = new VBox(10, new Label("Game Over! Winner: " + winner), new Button("Return to Lobby"));
+		Button returnBtn = new Button("Return to Lobby");
+		Button rematchBtn = new Button("Rematch");
+
+		returnBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.RETURN_TO_LOBBY, "", null));
+			mainStage.setScene(sceneMap.get("lobby"));
+		});
+
+		rematchBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.REMATCH, "", null));
+			turnLabel.setText("Waiting for opponent to accept rematch...");
+			mainStage.setScene(sceneMap.get("game"));
+			resetBoard();
+			isMyTurn = false;
+		});
+
+		VBox box = new VBox(10,
+				new Label("Game Over! " + winner),
+				rematchBtn,
+				returnBtn
+		);
 		box.setAlignment(Pos.CENTER);
 		box.setPadding(new Insets(20));
 		sceneMap.put("gameOver", new Scene(box, 400, 300));

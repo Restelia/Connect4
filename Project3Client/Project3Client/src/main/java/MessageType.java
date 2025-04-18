@@ -15,5 +15,9 @@ public enum MessageType {
     MOVE,
     TURN,
     INVALID_MOVE,
-    PLAYER_ID
+    PLAYER_ID,
+    REMATCH,
+    REMATCH_ACCEPTED,
+    RETURN_TO_LOBBY,
+    CANCEL_GAME_CREATION
 }
