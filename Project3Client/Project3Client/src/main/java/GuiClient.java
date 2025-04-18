@@ -126,8 +126,7 @@ public class GuiClient extends Application {
 		joinGameBtn = new Button("Join Game");
 
 		createGameBtn.setOnAction(e -> {
-			clientConnection.send(new Message(MessageType.CREATE_GAME, "", null));
-			showWaitingScreen();
+			showGameSettings();
 		});
 
 		joinGameBtn.setOnAction(e -> {
@@ -139,6 +138,52 @@ public class GuiClient extends Application {
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 		sceneMap.put("lobby", new Scene(lobbyBox, 400, 300));
+	}
+
+	public void showGameSettings() {
+		createGameBtn = new Button("Create Game");
+		Button backBtn = new Button("Back to Lobby");
+
+		backBtn.setOnAction(e -> {
+			mainStage.setScene(sceneMap.get("lobby"));
+		});
+
+		Slider slider = new Slider(5, 50, 25); // Min 5, Max 50, default 25
+		slider.setShowTickLabels(true);
+		slider.setShowTickMarks(true);
+		slider.setMajorTickUnit(5);
+		slider.setMinorTickCount(4);
+		slider.setBlockIncrement(1);
+
+		Label timeLabel = new Label("Selected time: 25 seconds");
+
+		// Update the label whenever the slider is moved
+		slider.valueProperty().addListener((obs, oldVal, newVal) -> {
+			int roundedVal = (int) Math.round(newVal.doubleValue());
+			timeLabel.setText("Selected time: " + roundedVal + " seconds");
+		});
+
+		VBox timeBox = new VBox(10, new Label("Pick time per turn:"), slider, timeLabel);
+		timeBox.setAlignment(Pos.CENTER);
+
+		// Optional AI section — not functional yet
+		HBox aiBox = new HBox(10, new Button("Yes"), new Button("No")); // Placeholder
+		VBox aiSection = new VBox(10, new Label("Enable AI?"), aiBox);
+		aiSection.setAlignment(Pos.CENTER);
+
+		VBox layout = new VBox(20, timeBox, aiSection, createGameBtn, backBtn);
+		layout.setAlignment(Pos.CENTER);
+		layout.setPadding(new Insets(20));
+
+		sceneMap.put("settings", new Scene(layout, 400, 300));
+		mainStage.setScene(sceneMap.get("settings"));
+
+		createGameBtn.setOnAction(e -> {
+			int selectedTime = (int) Math.round(slider.getValue());
+			// ✅ Send selected time in seconds as message to server
+			clientConnection.send(new Message(MessageType.CREATE_GAME, Integer.toString(selectedTime), null));
+			showWaitingScreen();
+		});
 	}
 
 	public void showWaitingScreen() {
