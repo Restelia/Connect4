@@ -29,6 +29,7 @@ public class GuiClient extends Application {
 	boolean isMyTurn;
 	Label turnLabel; // Turn indicator label
 	Label timerLabel;
+	Label status;
 	int turnSeconds;
 	private Timer currentTimer;
 
@@ -102,12 +103,18 @@ public class GuiClient extends Application {
 							Platform.runLater(() -> {
 								mainStage.setScene(sceneMap.get("lobby"));
 							});
+						} else {
+							status.setText("INCORRECT USERNAME OR PASSWORD");
+							status.setVisible(true);
 						}
 						break;
 					case ADDING_USER:
 						logInScreen();
 						mainStage.setScene(sceneMap.get("login"));
 						break;
+					case ALREADY_LOGGED_IN:
+						status.setText("USER ALREADY LOGGED IN");
+						status.setVisible(true);
 					default:
 						listItems2.getItems().add(msg.toString());
 						break;
@@ -186,7 +193,7 @@ public class GuiClient extends Application {
 		username = new TextField();
 		username.setPromptText("Input username here");
 
-		Label status = new Label("INCORRECT USERNAME OR PASSWORD");
+		status = new Label();
 		status.setVisible(false);
 		status.setTextFill(Color.RED);
 
@@ -199,7 +206,6 @@ public class GuiClient extends Application {
 		logInBtn2.setOnAction(e -> {
 			String combined = username.getText() + "," + password.getText();
 			clientConnection.send(new Message(MessageType.LOGIN, combined, null));
-			status.setVisible(true);
 		});
 
 		backBtn.setOnAction(e -> {

@@ -23,5 +23,6 @@ public enum MessageType {
     GET_LEADERBOARD,
     LEADERBOARD,
     LOGIN,
-    ADDING_USER
+    ADDING_USER,
+    ALREADY_LOGGED_IN
 }

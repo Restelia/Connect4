@@ -18,6 +18,7 @@ public class Server{
 	ArrayList<ClientThread> clients = new ArrayList<ClientThread>();
 	TheServer server;
 	private final Consumer<Message> callback;
+	private static Set<String> loggedInUsers = Collections.synchronizedSet(new HashSet<>());
 
 	Map<String, ObjectOutputStream> clientOutputs = new HashMap<>();
 	Queue<Integer> waitingPlayers = new LinkedList<>();
@@ -62,8 +63,7 @@ public class Server{
 			int count;
 			ObjectInputStream in;
 			ObjectOutputStream out;
-			int currentGameId = -1;
-			int playerNumber;
+			String clientUsername;
 
 			ClientThread(Socket s, int count){
 				this.connection = s;
@@ -180,18 +180,84 @@ public class Server{
 				}
 			}
 
-			public void checkCredentials(String username, String password){
-				try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))){
+			public void checkCredentials(String username, String password) throws IOException {
+				try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))) {
 					String line;
-					while ((line = reader.readLine()) != null){
+					while ((line = reader.readLine()) != null) {
 						String[] parts = line.split(",");
 						callback.accept(new Message(MessageType.TEXT, "Checking username and password in the database", null));
-						if (parts.length >= 2 && parts[0].equals(username) && parts[1].equals(password)){
-							out.writeObject(new Message(MessageType.LOGIN,String.valueOf(true),null));
+						if (parts.length >= 2 && parts[0].equals(username) && parts[1].equals(password)) {
+							synchronized (Server.loggedInUsers) {
+								if (Server.loggedInUsers.contains(username)) {
+									// User already logged in
+									out.writeObject(new Message(MessageType.ALREADY_LOGGED_IN, "ALREADY_LOGGED_IN", null));
+									return;
+								}
+								// Mark user as logged in
+								Server.loggedInUsers.add(username);
+								this.clientUsername = username;
+								out.writeObject(new Message(MessageType.LOGIN, String.valueOf(true), null));
+							}
+							return;
 						}
 					}
-				} catch (IOException e){
+					// If we get here, credentials were invalid
+					out.writeObject(new Message(MessageType.LOGIN, "INVALID_CREDENTIALS", null));
+				} catch (IOException e) {
+					e.printStackTrace();
+					out.writeObject(new Message(MessageType.LOGIN, "ERROR", null));
+				}
+			}
+			public void updateUserStats(String username, String result) {
+				File file = new File("users.txt");
+				List<String> lines = new ArrayList<>();
 
+				try {
+					// Read the current file into memory
+					BufferedReader reader = new BufferedReader(new FileReader(file));
+					String line;
+					while ((line = reader.readLine()) != null) {
+						lines.add(line);
+					}
+					reader.close();
+
+					// Find the line for the current user and update the stats
+					for (int i = 0; i < lines.size(); i++) {
+						String[] userData = lines.get(i).split(",");
+						if (userData[0].equals(username)) {
+							int wins = Integer.parseInt(userData[2]);
+							int losses = Integer.parseInt(userData[3]);
+							int draws = Integer.parseInt(userData[4]);
+
+							switch (result) {
+								case "win":
+									wins++;
+									break;
+								case "loss":
+									losses++;
+									break;
+								case "draw":
+									draws++;
+									break;
+							}
+
+							// Update the user's data
+							lines.set(i, String.join(",", username, userData[1],
+									String.valueOf(wins), String.valueOf(losses), String.valueOf(draws)));
+							break;
+						}
+					}
+
+					// Write the updated data back to the file
+					BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+					for (String updatedLine : lines) {
+						writer.write(updatedLine);
+						writer.newLine();
+					}
+					writer.close();
+
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 			}
 
@@ -333,12 +399,44 @@ public class Server{
 										out.writeObject(new Message(MessageType.GAME_OVER, "You win!", null));
 										if (opponentOut != null)
 											opponentOut.writeObject(new Message(MessageType.GAME_OVER, "You lose!", null));
+
+										ClientThread winnerThread = clients.stream()
+												.filter(c -> c.count == game.getCurrentPlayer())
+												.findFirst()
+												.orElse(null);
+										ClientThread loserThread = clients.stream()
+												.filter(c -> c.count == game.getOtherPlayer(game.getCurrentPlayer()))
+												.findFirst()
+												.orElse(null);
+
+										if (winnerThread != null && winnerThread.clientUsername != null) {
+											updateUserStats(winnerThread.clientUsername, "win");
+										}
+										if (loserThread != null && loserThread.clientUsername != null) {
+											updateUserStats(loserThread.clientUsername, "loss");
+										}
 										break;
 									}
 									else if (game.checkDraw()) {
 										out.writeObject(new Message(MessageType.GAME_OVER, "Draw!", null));
 										if (opponentOut != null)
 											opponentOut.writeObject(new Message(MessageType.GAME_OVER, "Draw!", null));
+
+										ClientThread drawThread1 = clients.stream()
+												.filter(c -> c.count == game.getCurrentPlayer())
+												.findFirst()
+												.orElse(null);
+										ClientThread drawThread2 = clients.stream()
+												.filter(c -> c.count == game.getOtherPlayer(game.getCurrentPlayer()))
+												.findFirst()
+												.orElse(null);
+
+										if (drawThread1 != null && drawThread1.clientUsername != null) {
+											updateUserStats(drawThread1.clientUsername, "draw");
+										}
+										if (drawThread2 != null && drawThread2.clientUsername != null) {
+											updateUserStats(drawThread2.clientUsername, "draw");
+										}
 										break;
 									}
 
@@ -598,12 +696,20 @@ public class Server{
 
 							}
 						}
-					    catch(Exception e) {
-					    	callback.accept(new Message(MessageType.DISCONNECT,"OOOOPPs...Something wrong with the socket from client: " + count + "....closing down!", null));
-					    	updateClients(new Message(MessageType.TEXT, "Client #"+count+" has left the server!", null));
-					    	clients.remove(this);
-					    	break;
-					    }
+						catch(Exception e) {
+							callback.accept(new Message(MessageType.DISCONNECT,"OOOOPPs...Something wrong with the socket from client: " + count + "....closing down!", null));
+							updateClients(new Message(MessageType.TEXT, "Client #"+count+" has left the server!", null));
+
+							// Remove from logged-in users set if this client was logged in
+							if (this.clientUsername != null) {
+								synchronized (Server.loggedInUsers) {
+									Server.loggedInUsers.remove(this.clientUsername);
+								}
+							}
+
+							clients.remove(this);
+							break;
+						}
 					}
 				}//end of run
 
