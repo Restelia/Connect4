@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
@@ -94,6 +95,19 @@ public class GuiClient extends Application {
 
 						createLeaderBoardGui(players);
 						showLeaderBoardScene();
+						break;
+					case LOGIN:
+						String response = msg.getMessage();
+						if (Boolean.parseBoolean(response)){
+							Platform.runLater(() -> {
+								mainStage.setScene(sceneMap.get("lobby"));
+							});
+						}
+						break;
+					case ADDING_USER:
+						logInScreen();
+						mainStage.setScene(sceneMap.get("login"));
+						break;
 					default:
 						listItems2.getItems().add(msg.toString());
 						break;
@@ -126,8 +140,8 @@ public class GuiClient extends Application {
 		});
 
 		logInBtn.setOnAction(e -> {
-			createLobbyGui();
-			mainStage.setScene(sceneMap.get("lobby"));
+			logInScreen();
+			mainStage.setScene(sceneMap.get("login"));
 		});
 
 		accountBox = new VBox(15, signUpBtn, logInBtn);
@@ -140,6 +154,10 @@ public class GuiClient extends Application {
 		username = new TextField();
 		username.setPromptText("Input username here");
 
+		Label status = new Label("USERNAME ALREADY TAKEN");
+		status.setVisible(false);
+		status.setTextFill(Color.RED);
+
 		password = new TextField();
 		password.setPromptText("Input password here");
 
@@ -149,7 +167,7 @@ public class GuiClient extends Application {
 		signUpBtn2.setOnAction(e -> {
 			String combined = username.getText() + "," + password.getText();
 			clientConnection.send(new Message(MessageType.USERNPASS, combined, null));
-			mainStage.setScene(sceneMap.get("lobby"));
+			status.setVisible(true);
 		});
 
 		backBtn.setOnAction(e -> {
@@ -157,10 +175,42 @@ public class GuiClient extends Application {
 		});
 
 		userInputs = new VBox(15, username, password);
-		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn);
+		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
 		sceneMap.put("signup", new Scene(signUpBox, 400, 300));
+
+	}
+
+	public void logInScreen(){
+		username = new TextField();
+		username.setPromptText("Input username here");
+
+		Label status = new Label("INCORRECT USERNAME OR PASSWORD");
+		status.setVisible(false);
+		status.setTextFill(Color.RED);
+
+		password = new TextField();
+		password.setPromptText("Input password here");
+
+		Button logInBtn2 = new Button ("Log in");
+		Button backBtn = new Button("Back to Main Screen");
+
+		logInBtn2.setOnAction(e -> {
+			String combined = username.getText() + "," + password.getText();
+			clientConnection.send(new Message(MessageType.LOGIN, combined, null));
+			status.setVisible(true);
+		});
+
+		backBtn.setOnAction(e -> {
+			mainStage.setScene(sceneMap.get("welcome"));
+		});
+
+		userInputs = new VBox(15, username, password);
+		signUpBox = new VBox(15, userInputs, logInBtn2, backBtn, status);
+		signUpBox.setAlignment(Pos.CENTER);
+		signUpBox.setPadding(new Insets(20));
+		sceneMap.put("login", new Scene(signUpBox, 400, 300));
 
 	}
 

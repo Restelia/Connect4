@@ -154,14 +154,44 @@ public class Server{
 
 			public void saveUser(String username, String password) {
 				callback.accept(new Message(MessageType.TEXT, "Received new username and password.", null));
+
+				try(BufferedReader reader = new BufferedReader(new FileReader("users.txt"))){
+					String line;
+					while ((line = reader.readLine()) != null){
+						String[] parts = line.split(",");
+						if (parts.length > 0 && parts[0].equals(username)){
+							return;
+						}
+					}
+				} catch (IOException e){
+					return;
+				}
+
 				String data = username + "," + password + ",0,0,0\n";
+				callback.accept(new Message(MessageType.TEXT, "Checking file", null));
 
 				callback.accept(new Message(MessageType.TEXT, "Creating new file", null));
 				try (FileWriter writer = new FileWriter("users.txt", true)) {
 					writer.write(data);
 					callback.accept(new Message(MessageType.TEXT, "Successfully appended", null));
+					out.writeObject(new Message(MessageType.ADDING_USER, null, null));
 				} catch (IOException e) {
 					System.err.println("Error saving user: " + e.getMessage());
+				}
+			}
+
+			public void checkCredentials(String username, String password){
+				try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))){
+					String line;
+					while ((line = reader.readLine()) != null){
+						String[] parts = line.split(",");
+						callback.accept(new Message(MessageType.TEXT, "Checking username and password in the database", null));
+						if (parts.length >= 2 && parts[0].equals(username) && parts[1].equals(password)){
+							out.writeObject(new Message(MessageType.LOGIN,String.valueOf(true),null));
+						}
+					}
+				} catch (IOException e){
+
 				}
 			}
 
@@ -556,6 +586,14 @@ public class Server{
 										callback.accept(new Message(MessageType.TEXT, "LEADERBOARD_ERROR", null));
 									}
 
+									break;
+
+								case LOGIN:
+									String[] information = message.getMessage().split(",");
+									callback.accept(new Message(MessageType.TEXT, "Received username: " + information[0].trim(), null));
+									callback.accept(new Message(MessageType.TEXT, "Received password: " + information[1].trim(), null));
+									checkCredentials(information[0], information[1]);
+									callback.accept(new Message(MessageType.TEXT, "Checking username and password", null));
 									break;
 
 							}

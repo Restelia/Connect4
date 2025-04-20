@@ -23,5 +23,7 @@ public enum MessageType {
     TIMER_UPDATE,
     USERNPASS,
     GET_LEADERBOARD,
-    LEADERBOARD
+    LEADERBOARD,
+    LOGIN,
+    ADDING_USER
 }
