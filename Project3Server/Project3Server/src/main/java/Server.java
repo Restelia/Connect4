@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -149,6 +150,19 @@ public class Server{
 				// 👇 call the timer again for the next turn
 				int finalNewTurnPlayer = newTurnPlayer;
 				game.startTurnTimer(() -> handleTurnTimeout(game, finalNewTurnPlayer, gameId));
+			}
+
+			public void saveUser(String username, String password) {
+				callback.accept(new Message(MessageType.TEXT, "Received new username and password.", null));
+				String data = username + "," + password + ",0,0,0\n";
+
+				callback.accept(new Message(MessageType.TEXT, "Creating new file", null));
+				try (FileWriter writer = new FileWriter("users.txt", true)) {
+					writer.write(data);
+					callback.accept(new Message(MessageType.TEXT, "Successfully appended", null));
+				} catch (IOException e) {
+					System.err.println("Error saving user: " + e.getMessage());
+				}
 			}
 
 			public void run(){
@@ -485,6 +499,15 @@ public class Server{
 										// Only one player requested a rematch so far
 										callback.accept(new Message(MessageType.TEXT, "Waiting for opponent to accept rematch...", null));
 									}
+									break;
+
+								case USERNPASS:
+									System.out.println("Creating username");
+									String[] parts = message.getMessage().split(",");
+									callback.accept(new Message(MessageType.TEXT, "Received username: " + parts[0].trim(), null));
+									callback.accept(new Message(MessageType.TEXT, "Received password: " + parts[1].trim(), null));
+									saveUser(parts[0], parts[1]);
+									callback.accept(new Message(MessageType.TEXT, "Saved username and password", null));
 									break;
 
 								case CANCEL_GAME_CREATION:

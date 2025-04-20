@@ -13,11 +13,10 @@ import java.util.*;
 
 public class GuiClient extends Application {
 
-	TextField c1;
-	TextField recipientField;
-	Button b1, createGameBtn, joinGameBtn;
+	TextField c1, recipientField, username, password;
+	Button b1, createGameBtn, joinGameBtn, signInBtn, logInBtn, signUpBtn;
 	HashMap<String, Scene> sceneMap;
-	VBox clientBox, lobbyBox;
+	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs;
 	Client clientConnection;
 	ListView<String> listItems2, gameListView;
 	Stage mainStage;
@@ -85,8 +84,8 @@ public class GuiClient extends Application {
 		});
 
 		clientConnection.start();
-		createClientGui();
 		createLobbyGui();
+		createWelcomeScreen();
 		createGameGui();
 
 		primaryStage.setOnCloseRequest(t -> {
@@ -94,34 +93,57 @@ public class GuiClient extends Application {
 			System.exit(0);
 		});
 
-		primaryStage.setScene(sceneMap.get("lobby"));
+		primaryStage.setScene(sceneMap.get("welcome"));
 		primaryStage.setTitle("Client" + currentPlayerId);
 		primaryStage.show();
 	}
 
-	public void createClientGui() {
-		listItems2 = new ListView<>();
+	public void createWelcomeScreen(){
+		signUpBtn = new Button("Sign Up");
+		logInBtn = new Button("Log in");
 
-		c1 = new TextField();
-		c1.setPromptText("Enter Message");
-		recipientField = new TextField();
-		recipientField.setPromptText("Enter recipient ");
-		b1 = new Button("Send");
-
-		b1.setOnAction(e -> {
-			String recipient = recipientField.getText();
-			if (Objects.equals(recipient, "")) {
-				recipient = null;
-			}
-			Message msg = new Message(MessageType.TEXT, c1.getText(), recipient);
-			clientConnection.send(msg);
-			c1.clear();
-			recipientField.clear();
+		signUpBtn.setOnAction(e -> {
+			signUpScreen();
+			mainStage.setScene(sceneMap.get("signup"));
 		});
 
-		clientBox = new VBox(10, c1, recipientField, b1, listItems2);
-		clientBox.setStyle("-fx-background-color: blue;" + "-fx-font-family: 'serif';");
-		sceneMap.put("client", new Scene(clientBox, 400, 300));
+		logInBtn.setOnAction(e -> {
+			createLobbyGui();
+			mainStage.setScene(sceneMap.get("lobby"));
+		});
+
+		accountBox = new VBox(15, signUpBtn, logInBtn);
+		accountBox.setAlignment(Pos.CENTER);
+		accountBox.setPadding(new Insets(20));
+		sceneMap.put("welcome", new Scene(accountBox, 400, 300));
+	}
+
+	public void signUpScreen(){
+		username = new TextField();
+		username.setPromptText("Input username here");
+
+		password = new TextField();
+		password.setPromptText("Input password here");
+
+		Button signUpBtn2 = new Button ("Sign up");
+		Button backBtn = new Button("Back to Main Screen");
+
+		signUpBtn2.setOnAction(e -> {
+			String combined = username.getText() + "," + password.getText();
+			clientConnection.send(new Message(MessageType.USERNPASS, combined, null));
+			mainStage.setScene(sceneMap.get("lobby"));
+		});
+
+		backBtn.setOnAction(e -> {
+			mainStage.setScene(sceneMap.get("welcome"));
+		});
+
+		userInputs = new VBox(15, username, password);
+		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn);
+		signUpBox.setAlignment(Pos.CENTER);
+		signUpBox.setPadding(new Insets(20));
+		sceneMap.put("signup", new Scene(signUpBox, 400, 300));
+
 	}
 
 	public void createLobbyGui() {
