@@ -1,3 +1,5 @@
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
@@ -8,6 +10,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +30,9 @@ public class GuiClient extends Application {
 	String currentPlayerId = "";
 	boolean isMyTurn;
 	Label turnLabel; // Turn indicator label
+	Label timerLabel;
+	int timeLeft; // Time left for the current turn
+	private Timeline timer;
 
 	public static void main(String[] args) {
 		launch(args);
@@ -73,6 +79,10 @@ public class GuiClient extends Application {
 						isMyTurn = false;
 						turnLabel.setText("Waiting for opponent...");
 						mainStage.setScene(sceneMap.get("game"));
+						break;
+					case TURN_TIMER:
+						int seconds = Integer.parseInt(msg.getMessage());
+						startClientTimer(seconds); // start or update your timer
 						break;
 					default:
 						listItems2.getItems().add(msg.toString());
@@ -232,6 +242,9 @@ public class GuiClient extends Application {
 		turnLabel = new Label("Opponent's Turn");
 		turnLabel.setStyle("-fx-font-size: 16px;");
 
+		timerLabel = new Label("Time Left: 0");
+		timerLabel.setStyle("-fx-font-size: 14px;");
+
 		gameBoard = new GridPane();
 		gameBoard.setPadding(new Insets(10));
 		gameBoard.setHgap(5);
@@ -258,7 +271,7 @@ public class GuiClient extends Application {
 			}
 		}
 
-		VBox root = new VBox(10, turnLabel, new Label("Connect 4 Game"), gameBoard);
+		VBox root = new VBox(10, turnLabel, timerLabel, new Label("Connect 4 Game"), gameBoard);
 		root.setPadding(new Insets(10));
 		sceneMap.put("game", new Scene(root, 400, 400));
 	}
@@ -338,5 +351,26 @@ public class GuiClient extends Application {
 		box.setPadding(new Insets(20));
 		sceneMap.put("gameOver", new Scene(box, 400, 300));
 		mainStage.setScene(sceneMap.get("gameOver"));
+	}
+
+	public void startClientTimer(int seconds) {
+		timeLeft = seconds;
+
+		if (timer != null) {
+			timer.stop();
+		}
+
+		timerLabel = new Label("Time left: " + timeLeft + "s");
+		timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+			timeLeft--;
+			timerLabel.setText("Time left: " + timeLeft + "s");
+			if (timeLeft <= 0) {
+				timer.stop();
+				turnLabel.setText("Time's up!");
+				isMyTurn = false;
+			}
+		}));
+		timer.setCycleCount(seconds);
+		timer.playFromStart();
 	}
 }
