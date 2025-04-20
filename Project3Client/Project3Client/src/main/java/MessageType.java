@@ -20,5 +20,5 @@ public enum MessageType {
     REMATCH_ACCEPTED,
     RETURN_TO_LOBBY,
     CANCEL_GAME_CREATION,
-    TURN_TIMER
+    TIMER_UPDATE,
 }

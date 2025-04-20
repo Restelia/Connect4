@@ -5,31 +5,18 @@ public class Connect4Game {
     private int player1;
     private int player2;
     private int currentPlayer;
-    private int initialStartingPlayer; // Used to alternate starting player if desired
-    private int turnDurationSeconds = 30;
+    private int turnDurationSeconds = 30; // default
     private Timer turnTimer;
     private Runnable onTurnTimeout;
     private boolean gameFinished = false;
     private int consecutiveTimeouts = 0;
 
-    private static final int ROWS = 6;
-    private static final int COLS = 7;
-    private int[][] board = new int[ROWS][COLS];
-    private boolean gameInProgress = true;
-
-    public Connect4Game() {
-        clearBoard();
-    }
-
     public void setTurnDuration(int seconds) {
         this.turnDurationSeconds = seconds;
     }
 
-    public void setPlayers(int p1, int p2) {
-        this.player1 = p1;
-        this.player2 = p2;
-        this.initialStartingPlayer = p1;
-        this.currentPlayer = p1;
+    public int getTurnDuration() {
+        return this.turnDurationSeconds;
     }
 
     public void resetTimeouts() {
@@ -45,12 +32,14 @@ public class Connect4Game {
     }
 
     public void startTurnTimer(Runnable timeoutCallback) {
-        cancelTurnTimer();
+        cancelTurnTimer(); // Clear any previous timer
         this.onTurnTimeout = timeoutCallback;
 
         turnTimer = new Timer();
+
         final int[] remaining = {turnDurationSeconds};
 
+        // Logging countdown every second
         turnTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -76,9 +65,28 @@ public class Connect4Game {
         }
     }
 
+
+    public void setPlayers(int p1, int p2) {
+        this.player1 = p1;
+        this.player2 = p2;
+        this.currentPlayer = p1; // player1 starts
+    }
+
+    private static final int ROWS = 6;
+    private static final int COLS = 7;
+    private int[][] board = new int[ROWS][COLS];  // 0 = empty, 1 = player 1, 2 = player 2
+
+    public Connect4Game() {
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                board[row][col] = 0;  // Initialize the board as empty
+            }
+        }
+    }
+
     public boolean makeMove(int col, int playerId) {
-        if (col < 0 || col >= COLS || gameFinished) return false;
-        for (int row = ROWS - 1; row >= 0; row--) {
+        if (col < 0 || col >= 7) return false;
+        for (int row = 5; row >= 0; row--) {
             if (board[row][col] == 0) {
                 board[row][col] = (playerId == player1) ? 1 : 2;
                 return true;
@@ -88,6 +96,7 @@ public class Connect4Game {
     }
 
     public boolean checkWinner() {
+        // Check for a winner
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
                 if (board[row][col] != 0 && checkDirection(row, col)) {
@@ -98,53 +107,55 @@ public class Connect4Game {
         return false;
     }
 
-    public void reset() {
-        cancelTurnTimer();     // Stop any ongoing timers
-        clearBoard();          // Clear the board
-        this.gameInProgress = true;
-        this.gameFinished = false;
-        this.consecutiveTimeouts = 0;
-        this.currentPlayer = initialStartingPlayer; // Keep same starter or rotate if desired
-    }
-
-    private void clearBoard() {
+    public boolean checkDraw() {
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
-                board[row][col] = 0;
+                if (board[row][col] == 0) {
+                    return false;
+                }
             }
         }
+        return true;
     }
 
     private boolean checkDirection(int row, int col) {
         int player = board[row][col];
 
-        // Horizontal
-        if (col + 3 < COLS &&
-                player == board[row][col + 1] &&
-                player == board[row][col + 2] &&
-                player == board[row][col + 3])
-            return true;
+        // Check horizontal
+        for (int i = 0; i < 4; i++) {
+            if (col + i < COLS && board[row][col + i] == player) {
+                if (i == 3) return true;
+            } else {
+                break;
+            }
+        }
 
-        // Vertical
-        if (row + 3 < ROWS &&
-                player == board[row + 1][col] &&
-                player == board[row + 2][col] &&
-                player == board[row + 3][col])
-            return true;
+        // Check vertical
+        for (int i = 0; i < 4; i++) {
+            if (row + i < ROWS && board[row + i][col] == player) {
+                if (i == 3) return true;
+            } else {
+                break;
+            }
+        }
 
-        // Diagonal \
-        if (row + 3 < ROWS && col + 3 < COLS &&
-                player == board[row + 1][col + 1] &&
-                player == board[row + 2][col + 2] &&
-                player == board[row + 3][col + 3])
-            return true;
+        // Check diagonal \
+        for (int i = 0; i < 4; i++) {
+            if (row + i < ROWS && col + i < COLS && board[row + i][col + i] == player) {
+                if (i == 3) return true;
+            } else {
+                break;
+            }
+        }
 
-        // Diagonal /
-        if (row - 3 >= 0 && col + 3 < COLS &&
-                player == board[row - 1][col + 1] &&
-                player == board[row - 2][col + 2] &&
-                player == board[row - 3][col + 3])
-            return true;
+        // Check diagonal /
+        for (int i = 0; i < 4; i++) {
+            if (row - i >= 0 && col + i < COLS && board[row - i][col + i] == player) {
+                if (i == 3) return true;
+            } else {
+                break;
+            }
+        }
 
         return false;
     }
@@ -156,7 +167,7 @@ public class Connect4Game {
                 boardString.append(board[row][col]);
             }
             if (row < ROWS - 1) {
-                boardString.append(",");
+                boardString.append(","); // Separate rows with commas
             }
         }
         return boardString.toString();
@@ -180,9 +191,5 @@ public class Connect4Game {
 
     public boolean isGameFinished() {
         return gameFinished;
-    }
-
-    public int getTurnDurationSeconds() {
-        return this.turnDurationSeconds;
     }
 }

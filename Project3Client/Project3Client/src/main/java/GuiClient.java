@@ -1,5 +1,3 @@
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
@@ -10,11 +8,8 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import javafx.util.Duration;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class GuiClient extends Application {
 
@@ -31,8 +26,8 @@ public class GuiClient extends Application {
 	boolean isMyTurn;
 	Label turnLabel; // Turn indicator label
 	Label timerLabel;
-	int timeLeft; // Time left for the current turn
-	private Timeline timer;
+	int turnSeconds;
+	private Timer currentTimer;
 
 	public static void main(String[] args) {
 		launch(args);
@@ -52,9 +47,7 @@ public class GuiClient extends Application {
 						break;
 					case GAME_STARTED:
 						System.out.println("GAME_STARTED received! Switching to game scene.");
-						//if (!sceneMap.containsKey("game")) {
-							createGameGui();
-						//}
+						createGameGui();
 						showGameScene();
 						break;
 					case BOARD_UPDATE:
@@ -80,9 +73,9 @@ public class GuiClient extends Application {
 						turnLabel.setText("Waiting for opponent...");
 						mainStage.setScene(sceneMap.get("game"));
 						break;
-					case TURN_TIMER:
-						int seconds = Integer.parseInt(msg.getMessage());
-						startClientTimer(seconds); // start or update your timer
+					case TIMER_UPDATE:
+						turnSeconds = Integer.parseInt(msg.getMessage());
+						updateTimerLabel(turnSeconds);
 						break;
 					default:
 						listItems2.getItems().add(msg.toString());
@@ -243,7 +236,7 @@ public class GuiClient extends Application {
 		turnLabel.setStyle("-fx-font-size: 16px;");
 
 		timerLabel = new Label("Time Left: 0");
-		timerLabel.setStyle("-fx-font-size: 14px;");
+		timerLabel.setStyle("-fx-font-size: 16px;");
 
 		gameBoard = new GridPane();
 		gameBoard.setPadding(new Insets(10));
@@ -258,10 +251,11 @@ public class GuiClient extends Application {
 				int finalCol = col;
 				cell.setOnAction(e -> {
 					if (isMyTurn) {
-						cell.setStyle("-fx-background-color: black;");
 						System.out.println("MOVE: Column " + finalCol);
 						clientConnection.send(new Message(MessageType.MOVE, Integer.toString(finalCol), null));
+						currentTimer.cancel();
 						turnLabel.setText("Opponent's Turn");
+						timerLabel.setText("Time Left: 0");
 						isMyTurn = false;
 					}
 				});
@@ -271,9 +265,34 @@ public class GuiClient extends Application {
 			}
 		}
 
-		VBox root = new VBox(10, turnLabel, timerLabel, new Label("Connect 4 Game"), gameBoard);
-		root.setPadding(new Insets(10));
-		sceneMap.put("game", new Scene(root, 400, 400));
+		listItems2 = new ListView<>();
+
+		c1 = new TextField();
+		c1.setPromptText("Enter Message");
+		recipientField = new TextField();
+		recipientField.setPromptText("Enter recipient ");
+		b1 = new Button("Send");
+
+		b1.setOnAction(e -> {
+			String recipient = recipientField.getText();
+			if (Objects.equals(recipient, "")) {
+				recipient = null;
+			}
+			Message msg = new Message(MessageType.TEXT, c1.getText(), recipient);
+			clientConnection.send(msg);
+			c1.clear();
+			recipientField.clear();
+		});
+
+		clientBox = new VBox(10, c1, recipientField, b1, listItems2);
+		clientBox.setStyle("-fx-background-color: blue;" + "-fx-font-family: 'serif';");
+
+		VBox gameBox = new VBox(10, turnLabel, timerLabel, new Label("Connect 4 Game"), gameBoard);
+		gameBox.setPadding(new Insets(10));
+
+		HBox gameSceneHBox = new HBox(10, gameBox, clientBox);
+
+		sceneMap.put("game", new Scene(gameSceneHBox, 700, 500));
 	}
 
 	public void updateBoard(String boardString) {
@@ -304,6 +323,28 @@ public class GuiClient extends Application {
 		return null;
 	}
 
+	public void updateTimerLabel(int seconds) {
+		if (currentTimer != null) {
+			currentTimer.cancel();
+		}
+
+		currentTimer = new Timer();
+		final int[] remaining = {seconds};
+
+		currentTimer.scheduleAtFixedRate(new TimerTask() {
+			@Override
+			public void run() {
+				if (remaining[0] <= 0) {
+					Platform.runLater(() -> timerLabel.setText("Time Left: 0"));
+					currentTimer.cancel();
+				} else {
+					Platform.runLater(() -> timerLabel.setText("Time Left: " + remaining[0]));
+					remaining[0]--;
+				}
+			}
+		}, 0, 1000);
+	}
+
 	public void handleTurnChange(String playerId) {
 		if (playerId.equals(currentPlayerId)) {
 			turnLabel.setText("Your Turn");
@@ -326,6 +367,10 @@ public class GuiClient extends Application {
 	}
 
 	public void showGameOver(String winner) {
+		if (currentTimer != null) {
+			currentTimer.cancel();
+		}
+
 		Button returnBtn = new Button("Return to Lobby");
 		Button rematchBtn = new Button("Rematch");
 
@@ -351,26 +396,5 @@ public class GuiClient extends Application {
 		box.setPadding(new Insets(20));
 		sceneMap.put("gameOver", new Scene(box, 400, 300));
 		mainStage.setScene(sceneMap.get("gameOver"));
-	}
-
-	public void startClientTimer(int seconds) {
-		timeLeft = seconds;
-
-		if (timer != null) {
-			timer.stop();
-		}
-
-		timerLabel = new Label("Time left: " + timeLeft + "s");
-		timer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
-			timeLeft--;
-			timerLabel.setText("Time left: " + timeLeft + "s");
-			if (timeLeft <= 0) {
-				timer.stop();
-				turnLabel.setText("Time's up!");
-				isMyTurn = false;
-			}
-		}));
-		timer.setCycleCount(seconds);
-		timer.playFromStart();
 	}
 }
