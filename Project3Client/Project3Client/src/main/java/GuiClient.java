@@ -265,9 +265,34 @@ public class GuiClient extends Application {
 			}
 		}
 
-		VBox root = new VBox(10, turnLabel, timerLabel, new Label("Connect 4 Game"), gameBoard);
-		root.setPadding(new Insets(10));
-		sceneMap.put("game", new Scene(root, 400, 400));
+		listItems2 = new ListView<>();
+
+		c1 = new TextField();
+		c1.setPromptText("Enter Message");
+		recipientField = new TextField();
+		recipientField.setPromptText("Enter recipient ");
+		b1 = new Button("Send");
+
+		b1.setOnAction(e -> {
+			String recipient = recipientField.getText();
+			if (Objects.equals(recipient, "")) {
+				recipient = null;
+			}
+			Message msg = new Message(MessageType.TEXT, c1.getText(), recipient);
+			clientConnection.send(msg);
+			c1.clear();
+			recipientField.clear();
+		});
+
+		clientBox = new VBox(10, c1, recipientField, b1, listItems2);
+		clientBox.setStyle("-fx-background-color: blue;" + "-fx-font-family: 'serif';");
+
+		VBox gameBox = new VBox(10, turnLabel, timerLabel, new Label("Connect 4 Game"), gameBoard);
+		gameBox.setPadding(new Insets(10));
+
+		HBox gameSceneHBox = new HBox(10, gameBox, clientBox);
+
+		sceneMap.put("game", new Scene(gameSceneHBox, 700, 500));
 	}
 
 	public void updateBoard(String boardString) {
