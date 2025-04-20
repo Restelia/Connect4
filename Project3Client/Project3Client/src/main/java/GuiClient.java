@@ -1,20 +1,23 @@
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class GuiClient extends Application {
 
 	TextField c1, recipientField, username, password;
-	Button b1, createGameBtn, joinGameBtn, signInBtn, logInBtn, signUpBtn;
+	Button b1, createGameBtn, joinGameBtn, signInBtn, logInBtn, signUpBtn, leaderBoardBtn;
 	HashMap<String, Scene> sceneMap;
 	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs;
 	Client clientConnection;
@@ -76,6 +79,21 @@ public class GuiClient extends Application {
 						turnSeconds = Integer.parseInt(msg.getMessage());
 						updateTimerLabel(turnSeconds);
 						break;
+					case LEADERBOARD:
+						String leaderboardData = msg.getMessage();
+						List<UserStats> players = Arrays.stream(leaderboardData.split(";"))
+								.map(entry -> {
+									String[] parts = entry.split(",");
+									String name = parts[0];
+									int wins = Integer.parseInt(parts[1]);
+									int losses = Integer.parseInt(parts[2]);
+									int draws = Integer.parseInt(parts[3]);
+									return new UserStats(name, wins, losses, draws);
+								})
+								.collect(Collectors.toList());
+
+						createLeaderBoardGui(players);
+						showLeaderBoardScene();
 					default:
 						listItems2.getItems().add(msg.toString());
 						break;
@@ -149,6 +167,8 @@ public class GuiClient extends Application {
 	public void createLobbyGui() {
 		createGameBtn = new Button("Create Game");
 		joinGameBtn = new Button("Join Game");
+		leaderBoardBtn = new Button("Leaderboard");
+		//onlineUsersBtn = new Button("Online Users");
 
 		createGameBtn.setOnAction(e -> {
 			showGameSettings();
@@ -159,7 +179,11 @@ public class GuiClient extends Application {
 			showGameListScreen();
 		});
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn);
+		leaderBoardBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.GET_LEADERBOARD, "", null));
+		});
+
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn, leaderBoardBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 		sceneMap.put("lobby", new Scene(lobbyBox, 400, 300));
@@ -419,4 +443,43 @@ public class GuiClient extends Application {
 		sceneMap.put("gameOver", new Scene(box, 400, 300));
 		mainStage.setScene(sceneMap.get("gameOver"));
 	}
+
+	public void createLeaderBoardGui(List<UserStats> players) {
+		TableView<UserStats> table = new TableView<>();
+
+		TableColumn<UserStats, String> usernameCol = new TableColumn<>("Username");
+		usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+		usernameCol.setMinWidth(200);
+
+		TableColumn<UserStats, Integer> winsCol = new TableColumn<>("Wins");
+		winsCol.setCellValueFactory(new PropertyValueFactory<>("wins"));
+		winsCol.setMinWidth(100);
+
+		TableColumn<UserStats, Integer> lossesCol = new TableColumn<>("Losses");
+		lossesCol.setCellValueFactory(new PropertyValueFactory<>("losses"));
+		lossesCol.setMinWidth(100);
+
+		TableColumn<UserStats, Integer> drawsCol = new TableColumn<>("Draws");
+		drawsCol.setCellValueFactory(new PropertyValueFactory<>("draws"));
+		drawsCol.setMinWidth(100);
+
+		table.getColumns().addAll(usernameCol, winsCol, lossesCol, drawsCol);
+		table.setItems(FXCollections.observableArrayList(players));
+		table.getSortOrder().add(winsCol);  // Sort by wins descending
+		winsCol.setSortType(TableColumn.SortType.DESCENDING);
+
+		Button backButton = new Button("Back to Lobby");
+		backButton.setOnAction(e -> mainStage.setScene(sceneMap.get("lobby")));
+
+		VBox layout = new VBox(10, new Label("🏆 Leaderboard"), table, backButton);
+		layout.setAlignment(Pos.CENTER);
+		layout.setPadding(new Insets(20));
+
+		sceneMap.put("leaderboard", new Scene(layout, 600, 400));
+	}
+
+	public void showLeaderBoardScene() {
+		mainStage.setScene(sceneMap.get("leaderboard"));
+	}
+
 }

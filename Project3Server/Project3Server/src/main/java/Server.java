@@ -521,6 +521,43 @@ public class Server{
 									}
 
 									break;
+
+								case GET_LEADERBOARD:
+									System.out.println("Getting leaderboard...");
+									List<String[]> userStats = new ArrayList<>();
+
+									try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))) {
+										String line;
+										while ((line = reader.readLine()) != null) {
+											String[] part = line.split(",");
+											if (part.length >= 5) {
+												String username = part[0];
+												int wins = Integer.parseInt(part[2]);
+												int losses = Integer.parseInt(part[3]);
+												int draws = Integer.parseInt(part[4]); // you originally had 0,0,0 (assumed draws is the 5th field)
+												userStats.add(new String[]{username, String.valueOf(wins), String.valueOf(losses), String.valueOf(draws)});
+											}
+										}
+
+										// Sort by number of wins (descending)
+										userStats.sort((a, b) -> Integer.compare(Integer.parseInt(b[1]), Integer.parseInt(a[1])));
+
+										// Convert to string format: username,wins,losses,draws
+										List<String> formatted = new ArrayList<>();
+										for (String[] user : userStats) {
+											formatted.add(String.join(",", user));
+										}
+
+										String leaderboardMessage = String.join(";", formatted);
+										out.writeObject(new Message(MessageType.LEADERBOARD, leaderboardMessage, null));
+
+									} catch (IOException e) {
+										System.err.println("Error reading leaderboard: " + e.getMessage());
+										callback.accept(new Message(MessageType.TEXT, "LEADERBOARD_ERROR", null));
+									}
+
+									break;
+
 							}
 						}
 					    catch(Exception e) {

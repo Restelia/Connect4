@@ -19,5 +19,7 @@ public enum MessageType {
     RETURN_TO_LOBBY,
     CANCEL_GAME_CREATION,
     TIMER_UPDATE,
-    USERNPASS
+    USERNPASS,
+    GET_LEADERBOARD,
+    LEADERBOARD,
 }
