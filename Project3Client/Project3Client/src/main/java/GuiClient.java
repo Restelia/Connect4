@@ -1,35 +1,50 @@
+import javafx.animation.PauseTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.effect.GaussianBlur;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class GuiClient extends Application {
 
-	TextField c1;
-	TextField recipientField;
-	Button b1, createGameBtn, joinGameBtn;
+	TextField c1, recipientField, username, password;
+	Button b1, createGameBtn, joinGameBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn, friendsListBtn;
 	HashMap<String, Scene> sceneMap;
-	VBox clientBox, lobbyBox;
+	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs, notificationArea;
 	Client clientConnection;
 	ListView<String> listItems2, gameListView;
 	Stage mainStage;
 	GridPane gameBoard;
-	String currentPlayerId = "";
+	StackPane rootPane;
+	Pane contentHolder;
+	String currentPlayerId = "", currentUsername, localUsername;
 	boolean isMyTurn;
-	Label turnLabel; // Turn indicator label
-	Label timerLabel;
-	int turnSeconds;
-	private Timer currentTimer;
+	Label turnLabel, timerLabel, status, usernameLabel, welcomeLabel;
+	int turnSeconds, width=700, height=500;
+	Timer currentTimer;
+	NotificationManager notificationManager;
 
-	public static void main(String[] args) {
+    public static void main(String[] args) {
 		launch(args);
 	}
 
@@ -60,6 +75,11 @@ public class GuiClient extends Application {
 					case PLAYER_ID:
 						currentPlayerId = msg.getMessage();
 						break;
+					case USERNAME:
+						currentUsername = msg.getMessage();
+						usernameLabel.setText(currentUsername);
+						localUsername = currentUsername;
+						break;
 					case GAME_OVER:
 						showGameOver(msg.getMessage()); // Game over message
 						break;
@@ -77,6 +97,108 @@ public class GuiClient extends Application {
 						turnSeconds = Integer.parseInt(msg.getMessage());
 						updateTimerLabel(turnSeconds);
 						break;
+					case LEADERBOARD:
+						String leaderboardData = msg.getMessage();
+						List<UserStats> players = Arrays.stream(leaderboardData.split(";"))
+								.map(entry -> {
+									String[] parts = entry.split(",");
+									String name = parts[0];
+									int wins = Integer.parseInt(parts[1]);
+									int losses = Integer.parseInt(parts[2]);
+									int draws = Integer.parseInt(parts[3]);
+									return new UserStats(name, wins, losses, draws);
+								})
+								.collect(Collectors.toList());
+
+						createLeaderBoardGui(players);
+						showLeaderBoardScene();
+						break;
+					case LOGIN:
+						String response = msg.getMessage();
+						if (Boolean.parseBoolean(response)) {
+							createLobbyGui();
+							returnToLobby();
+						} else {
+							status.setText("INCORRECT USERNAME OR PASSWORD");
+							status.setVisible(true);
+						}
+						break;
+					case ADDING_USER:
+						logInScreen();
+						mainStage.setScene(sceneMap.get("login"));
+						break;
+					case ALREADY_LOGGED_IN:
+						status.setText("USER ALREADY LOGGED IN");
+						status.setVisible(true);
+						break;
+					case ONLINE_USERS:
+						showOnlineUsers(msg.getMessage().split(","));
+						break;
+					case FRIEND_REQUEST_NOTIFICATION:
+						String requesterName = msg.getMessage();
+						HBox friendRequestCard = new HBox(10);
+						friendRequestCard.setAlignment(Pos.CENTER_LEFT);
+						friendRequestCard.setStyle("-fx-background-color: rgba(40,120,200,0.9); -fx-background-radius: 5; -fx-padding: 10;");
+
+						Label requestLabel = new Label(requesterName + " wants to be your friend!");
+						requestLabel.setTextFill(Color.WHITE);
+
+						Button acceptBtn = new Button("✓");
+						acceptBtn.setStyle("-fx-background-color: rgba(0,200,0,0.7); -fx-text-fill: white;");
+						acceptBtn.setOnAction(e -> {
+							clientConnection.send(new Message(
+									MessageType.FRIEND_REQUEST_RESPONSE,
+									"accept",
+									requesterName
+							));
+							notificationManager.showNotification("You are now friends with " + requesterName);
+							notificationArea.getChildren().remove(friendRequestCard);
+						});
+
+						Button rejectBtn = new Button("✕");
+						rejectBtn.setStyle("-fx-background-color: rgba(200,0,0,0.7); -fx-text-fill: white;");
+						rejectBtn.setOnAction(e -> {
+							clientConnection.send(new Message(
+									MessageType.FRIEND_REQUEST_RESPONSE,
+									"reject",
+									requesterName
+							));
+							notificationArea.getChildren().remove(friendRequestCard);
+						});
+
+						friendRequestCard.getChildren().addAll(requestLabel, acceptBtn, rejectBtn);
+						Platform.runLater(() -> {
+							long friendRequestCount = notificationArea.getChildren().stream()
+									.filter(node -> node instanceof HBox)
+									.count();
+
+							if (friendRequestCount >= 3) {
+								// Optionally show a notification that limit has been reached
+								notificationManager.showNotification("Friend request limit reached (3 max)");
+								return;
+							}
+
+							notificationArea.getChildren().add(friendRequestCard);
+							if (!notificationArea.isVisible()) {
+								notificationArea.setVisible(true);
+								TranslateTransition showTransition = new TranslateTransition(Duration.millis(300), notificationArea);
+								showTransition.setToY(0);
+								showTransition.play();
+							}
+						});
+
+						PauseTransition delay = new PauseTransition(Duration.seconds(5));
+						delay.setOnFinished(ev -> {
+							notificationArea.getChildren().remove(friendRequestCard);
+						});
+						delay.play();
+						break;
+
+					case FRIENDS_LIST:
+						String[] friends = msg.getMessage().split(",");
+						Platform.runLater(() -> showFriendsList(friends));
+						break;
+
 					default:
 						listItems2.getItems().add(msg.toString());
 						break;
@@ -85,8 +207,7 @@ public class GuiClient extends Application {
 		});
 
 		clientConnection.start();
-		createClientGui();
-		createLobbyGui();
+		createWelcomeScreen();
 		createGameGui();
 
 		primaryStage.setOnCloseRequest(t -> {
@@ -94,39 +215,165 @@ public class GuiClient extends Application {
 			System.exit(0);
 		});
 
-		primaryStage.setScene(sceneMap.get("lobby"));
+		primaryStage.setScene(sceneMap.get("welcome"));
 		primaryStage.setTitle("Client" + currentPlayerId);
 		primaryStage.show();
 	}
 
-	public void createClientGui() {
-		listItems2 = new ListView<>();
+	public void createWelcomeScreen(){
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(700);  // or use scene width binding
+		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setPreserveRatio(false);
 
-		c1 = new TextField();
-		c1.setPromptText("Enter Message");
-		recipientField = new TextField();
-		recipientField.setPromptText("Enter recipient ");
-		b1 = new Button("Send");
+		// Apply blur effect
+		GaussianBlur blur = new GaussianBlur(20);
+		backgroundView.setEffect(blur);
 
-		b1.setOnAction(e -> {
-			String recipient = recipientField.getText();
-			if (Objects.equals(recipient, "")) {
-				recipient = null;
-			}
-			Message msg = new Message(MessageType.TEXT, c1.getText(), recipient);
-			clientConnection.send(msg);
-			c1.clear();
-			recipientField.clear();
+		signUpBtn = new Button("Sign Up");
+		logInBtn = new Button("Log in");
+
+		signUpBtn.setId("welcome-button");
+		logInBtn.setId("welcome-button");
+
+		welcomeLabel = new Label("Welcome to Connect 4");
+		welcomeLabel.setId("welcome-title");
+
+		signUpBtn.setOnAction(e -> {
+			signUpScreen();
+			mainStage.setScene(sceneMap.get("signup"));
 		});
 
-		clientBox = new VBox(10, c1, recipientField, b1, listItems2);
-		clientBox.setStyle("-fx-background-color: blue;" + "-fx-font-family: 'serif';");
-		sceneMap.put("client", new Scene(clientBox, 400, 300));
+		logInBtn.setOnAction(e -> {
+			logInScreen();
+			mainStage.setScene(sceneMap.get("login"));
+		});
+
+		VBox buttonBox = new VBox(15, signUpBtn, logInBtn);
+		buttonBox.setAlignment(Pos.CENTER);
+
+		accountBox = new VBox(30, welcomeLabel, buttonBox);
+		accountBox.setAlignment(Pos.CENTER);
+		accountBox.setPadding(new Insets(50));
+		accountBox.setId("welcome-box");
+
+		StackPane root = new StackPane(backgroundView, accountBox);
+
+		Scene scene = createBaseScene(root);
+		scene.getStylesheets().add(getClass().getResource("style.css").toExternalForm());
+		sceneMap.put("welcome", scene);
+	}
+
+	public void signUpScreen(){
+		username = new TextField();
+		username.setPromptText("Input username here");
+
+		Label status = new Label("USERNAME ALREADY TAKEN");
+		status.setVisible(false);
+		status.setTextFill(Color.RED);
+
+		password = new TextField();
+		password.setPromptText("Input password here");
+
+		Button signUpBtn2 = new Button ("Sign up");
+		Button backBtn = new Button("Back to Main Screen");
+
+		signUpBtn2.setOnAction(e -> {
+			String combined = username.getText() + "," + password.getText();
+			if (username.getText().trim().isEmpty() || password.getText().trim().isEmpty()){
+				status.setText("Username and password cannot be empty.");
+				status.setVisible(true);
+				return;
+			}
+			clientConnection.send(new Message(MessageType.USERNPASS, combined, null));
+			status.setVisible(true);
+		});
+
+		backBtn.setOnAction(e -> {
+			mainStage.setScene(sceneMap.get("welcome"));
+		});
+
+		userInputs = new VBox(15, username, password);
+		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn, status);
+		signUpBox.setAlignment(Pos.CENTER);
+		signUpBox.setPadding(new Insets(20));
+		sceneMap.put("signup", createBaseScene(signUpBox));
+
+	}
+
+	public void logInScreen(){
+		username = new TextField();
+		username.setPromptText("Input username here");
+
+		status = new Label();
+		status.setVisible(false);
+		status.setTextFill(Color.RED);
+
+		password = new TextField();
+		password.setPromptText("Input password here");
+
+		Button logInBtn2 = new Button ("Log in");
+		Button backBtn = new Button("Back to Main Screen");
+
+		logInBtn2.setOnAction(e -> {
+			String combined = username.getText() + "," + password.getText();
+			if (username.getText().trim().isEmpty() || password.getText().trim().isEmpty()){
+				status.setText("Username and password cannot be empty.");
+				status.setVisible(true);
+				return;
+			}
+			clientConnection.send(new Message(MessageType.LOGIN, combined, null));
+		});
+
+		backBtn.setOnAction(e -> {
+			mainStage.setScene(sceneMap.get("welcome"));
+		});
+
+		userInputs = new VBox(15, username, password);
+		signUpBox = new VBox(15, userInputs, logInBtn2, backBtn, status);
+		signUpBox.setAlignment(Pos.CENTER);
+		signUpBox.setPadding(new Insets(20));
+		sceneMap.put("login", createBaseScene(signUpBox));
+	}
+
+	public Scene createBaseScene(Pane content) {
+        // root for the whole app
+		rootPane = new StackPane();
+		rootPane.getChildren().add(content);
+
+		// Create notification area (only once)
+		if (notificationArea == null) {
+			notificationArea = new VBox(5);
+			notificationArea.setAlignment(Pos.BOTTOM_RIGHT);
+			notificationArea.setPadding(new Insets(10));
+			notificationArea.setTranslateY(100);
+			notificationArea.setVisible(false);
+			notificationArea.setPickOnBounds(false);
+
+			notificationManager = new NotificationManager(notificationArea);
+			notificationArea.getStyleClass().add("notification-area");
+		}
+
+		if (notificationArea.getParent() != null) {
+			((Pane) notificationArea.getParent()).getChildren().remove(notificationArea);
+		}
+
+		// Ensure notification area is on top
+		rootPane.getChildren().add(notificationArea);
+
+		Scene scene = new Scene(rootPane, width, height);
+		scene.getStylesheets().add(getClass().getResource("style.css").toExternalForm());
+		return scene;
 	}
 
 	public void createLobbyGui() {
 		createGameBtn = new Button("Create Game");
 		joinGameBtn = new Button("Join Game");
+		leaderBoardBtn = new Button("Leaderboard");
+		usersOnlineBtn = new Button("Users Online");
+		friendsListBtn = new Button("Friends List");
+		usernameLabel = new Label();
 
 		createGameBtn.setOnAction(e -> {
 			showGameSettings();
@@ -137,10 +384,50 @@ public class GuiClient extends Application {
 			showGameListScreen();
 		});
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn);
+		leaderBoardBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.GET_LEADERBOARD, "", null));
+		});
+
+		usersOnlineBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.VIEW_ONLINE_USERS, "", null));
+		});
+
+		friendsListBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.VIEW_FRIENDS, currentUsername, null));
+		});
+
+		Button testNotificationBtn = new Button("Test Notification");
+		testNotificationBtn.setOnAction(e ->
+				notificationManager.showNotification("This is a test notification!")
+		);
+
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, friendsListBtn, usernameLabel, testNotificationBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
-		sceneMap.put("lobby", new Scene(lobbyBox, 400, 300));
+
+		Scene lobbyScene = createBaseScene(lobbyBox);
+		sceneMap.put("lobby", lobbyScene);
+	}
+
+	public void returnToLobby() {
+		// Get the stored lobby scene
+		Scene lobbyScene = sceneMap.get("lobby");
+
+		// Ensure notification area is properly attached to the lobby scene
+		if (notificationArea != null && notificationArea.getParent() != null) {
+			((Pane) notificationArea.getParent()).getChildren().remove(notificationArea);
+		}
+
+		// Get the root pane of the lobby scene
+		StackPane lobbyRoot = (StackPane) lobbyScene.getRoot();
+
+		// Add notification area to the lobby root
+		if (notificationArea != null) {
+			lobbyRoot.getChildren().add(notificationArea);
+		}
+
+		// Set the scene
+		mainStage.setScene(lobbyScene);
 	}
 
 	public void showGameSettings() {
@@ -148,7 +435,7 @@ public class GuiClient extends Application {
 		Button backBtn = new Button("Back to Lobby");
 
 		backBtn.setOnAction(e -> {
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		Slider slider = new Slider(5, 50, 25); // Min 5, Max 50, default 25
@@ -178,7 +465,7 @@ public class GuiClient extends Application {
 		layout.setAlignment(Pos.CENTER);
 		layout.setPadding(new Insets(20));
 
-		sceneMap.put("settings", new Scene(layout, 400, 300));
+		sceneMap.put("settings", createBaseScene(layout));
 		mainStage.setScene(sceneMap.get("settings"));
 
 		createGameBtn.setOnAction(e -> {
@@ -196,12 +483,12 @@ public class GuiClient extends Application {
 
 		backBtn.setOnAction(e -> {
 			clientConnection.send(new Message(MessageType.CANCEL_GAME_CREATION, "", null));
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		box.getChildren().addAll(label, backBtn);
 		box.setAlignment(Pos.CENTER);
-		sceneMap.put("waiting", new Scene(box, 400, 300));
+		sceneMap.put("waiting", createBaseScene(box));
 		mainStage.setScene(sceneMap.get("waiting"));
 	}
 
@@ -218,12 +505,12 @@ public class GuiClient extends Application {
 		});
 
 		backBtn.setOnAction(e -> {
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		VBox box = new VBox(10, new Label("Available Games:"), gameListView, joinSelectedBtn, backBtn);
 		box.setPadding(new Insets(10));
-		sceneMap.put("gameList", new Scene(box, 400, 300));
+		sceneMap.put("gameList", createBaseScene(box));
 		mainStage.setScene(sceneMap.get("gameList"));
 	}
 
@@ -292,7 +579,7 @@ public class GuiClient extends Application {
 
 		HBox gameSceneHBox = new HBox(10, gameBox, clientBox);
 
-		sceneMap.put("game", new Scene(gameSceneHBox, 700, 500));
+		sceneMap.put("game", createBaseScene(gameSceneHBox));
 	}
 
 	public void updateBoard(String boardString) {
@@ -376,7 +663,7 @@ public class GuiClient extends Application {
 
 		returnBtn.setOnAction(e -> {
 			clientConnection.send(new Message(MessageType.RETURN_TO_LOBBY, "", null));
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		rematchBtn.setOnAction(e -> {
@@ -394,7 +681,113 @@ public class GuiClient extends Application {
 		);
 		box.setAlignment(Pos.CENTER);
 		box.setPadding(new Insets(20));
-		sceneMap.put("gameOver", new Scene(box, 400, 300));
+		sceneMap.put("gameOver", createBaseScene(box));
 		mainStage.setScene(sceneMap.get("gameOver"));
+	}
+
+	public void createLeaderBoardGui(List<UserStats> players) {
+		TableView<UserStats> table = new TableView<>();
+
+		TableColumn<UserStats, String> usernameCol = new TableColumn<>("Username");
+		usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+		usernameCol.setMinWidth(200);
+
+		TableColumn<UserStats, Integer> winsCol = new TableColumn<>("Wins");
+		winsCol.setCellValueFactory(new PropertyValueFactory<>("wins"));
+		winsCol.setMinWidth(100);
+
+		TableColumn<UserStats, Integer> lossesCol = new TableColumn<>("Losses");
+		lossesCol.setCellValueFactory(new PropertyValueFactory<>("losses"));
+		lossesCol.setMinWidth(100);
+
+		TableColumn<UserStats, Integer> drawsCol = new TableColumn<>("Draws");
+		drawsCol.setCellValueFactory(new PropertyValueFactory<>("draws"));
+		drawsCol.setMinWidth(100);
+
+		table.getColumns().addAll(usernameCol, winsCol, lossesCol, drawsCol);
+		table.setItems(FXCollections.observableArrayList(players));
+		table.getSortOrder().add(winsCol);  // Sort by wins descending
+		winsCol.setSortType(TableColumn.SortType.DESCENDING);
+
+		Button backButton = new Button("Back to Lobby");
+		backButton.setOnAction(e -> returnToLobby());
+
+		VBox layout = new VBox(10, new Label("🏆 Leaderboard"), table, backButton);
+		layout.setAlignment(Pos.CENTER);
+		layout.setPadding(new Insets(20));
+
+		sceneMap.put("leaderboard", createBaseScene(layout));
+	}
+
+	public void showLeaderBoardScene() {
+		mainStage.setScene(sceneMap.get("leaderboard"));
+	}
+
+	public void showOnlineUsers(String[] users) {
+		ListView<String> userListView = new ListView<>();
+
+		// Filter out the current user from the list
+		List<String> filteredUsers = Arrays.stream(users)
+				.filter(username -> !username.equals(currentUsername))
+				.collect(Collectors.toList());
+
+		userListView.getItems().setAll(filteredUsers);
+
+		Button sendRequestBtn = new Button("Send Friend Request");
+		Button closeBtn = new Button("Close");
+
+		sendRequestBtn.setOnAction(e -> {
+			String selectedUser = userListView.getSelectionModel().getSelectedItem();
+			if (selectedUser != null) {
+				// Create and send a friend request message
+				Message friendRequest = new Message(
+						MessageType.ADD_FRIEND,
+						currentUsername,
+						selectedUser  // Send to the selected user
+				);
+				clientConnection.send(friendRequest);
+
+				// Show confirmation to the sender
+				status.setText("Friend request sent to " + selectedUser);
+				status.setVisible(true);
+			}
+		});
+
+		closeBtn.setOnAction(e -> returnToLobby());
+
+		// Update label to show count of online users (excluding yourself)
+		Label titleLabel = new Label("Currently Online Users (" + filteredUsers.size() + "):");
+
+		VBox box = new VBox(10,
+				titleLabel,
+				userListView,
+				new HBox(10, sendRequestBtn, closeBtn) // Put buttons side by side
+		);
+		box.setAlignment(Pos.CENTER);
+		box.setPadding(new Insets(20));
+
+		Scene onlineUsersScene = createBaseScene(box);
+		mainStage.setScene(onlineUsersScene);
+	}
+
+	public void showFriendsList(String[] friends) {
+		ListView<String> friendsListView = new ListView<>();
+		friendsListView.getItems().setAll(friends);
+
+		Button closeBtn = new Button("Close");
+		closeBtn.setOnAction(e -> returnToLobby());
+
+		Label titleLabel = new Label("Your Friends (" + friends.length + "):");
+
+		VBox box = new VBox(10,
+				titleLabel,
+				friendsListView,
+				new HBox(10, closeBtn)
+		);
+		box.setAlignment(Pos.CENTER);
+		box.setPadding(new Insets(20));
+
+		Scene friendsScene = createBaseScene(box);
+		mainStage.setScene(friendsScene);
 	}
 }

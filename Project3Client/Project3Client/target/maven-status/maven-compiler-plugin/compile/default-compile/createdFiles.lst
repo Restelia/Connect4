@@ -1,6 +1,8 @@
-GuiClient$2.class
-Message.class
+NotificationManager.class
+UserStats.class
 Client.class
 MessageType.class
-GuiClient$1.class
 GuiClient.class
+GuiClient$2.class
+Message.class
+GuiClient$1.class

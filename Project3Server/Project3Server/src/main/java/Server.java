@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -17,6 +18,7 @@ public class Server{
 	ArrayList<ClientThread> clients = new ArrayList<ClientThread>();
 	TheServer server;
 	private final Consumer<Message> callback;
+	private static Set<String> loggedInUsers = Collections.synchronizedSet(new HashSet<>());
 
 	Map<String, ObjectOutputStream> clientOutputs = new HashMap<>();
 	Queue<Integer> waitingPlayers = new LinkedList<>(); // Created Game and waiting for someone to join
@@ -61,8 +63,7 @@ public class Server{
 			int count;
 			ObjectInputStream in;
 			ObjectOutputStream out;
-			int currentGameId = -1;
-			int playerNumber;
+			String clientUsername;
 
 			ClientThread(Socket s, int count){
 				this.connection = s;
@@ -149,6 +150,175 @@ public class Server{
 				// 👇 call the timer again for the next turn
 				int finalNewTurnPlayer = newTurnPlayer;
 				game.startTurnTimer(() -> handleTurnTimeout(game, finalNewTurnPlayer, gameId));
+			}
+
+			public void saveUser(String username, String password) {
+				callback.accept(new Message(MessageType.TEXT, "Received new username and password.", null));
+
+				try(BufferedReader reader = new BufferedReader(new FileReader("users.txt"))){
+					String line;
+					while ((line = reader.readLine()) != null){
+						String[] parts = line.split(",");
+						if (parts.length > 0 && parts[0].equals(username)){
+							return;
+						}
+					}
+				} catch (IOException e){
+					return;
+				}
+
+				String data = username + "," + password + ",0,0,0\n";
+				callback.accept(new Message(MessageType.TEXT, "Checking file", null));
+
+				callback.accept(new Message(MessageType.TEXT, "Creating new file", null));
+				try (FileWriter writer = new FileWriter("users.txt", true)) {
+					writer.write(data);
+					callback.accept(new Message(MessageType.TEXT, "Successfully appended", null));
+					out.writeObject(new Message(MessageType.ADDING_USER, null, null));
+				} catch (IOException e) {
+					System.err.println("Error saving user: " + e.getMessage());
+				}
+			}
+
+			public void checkCredentials(String username, String password) throws IOException {
+				try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))) {
+					String line;
+					callback.accept(new Message(MessageType.TEXT, "Checking username and password in the database", null));
+					while ((line = reader.readLine()) != null) {
+						String[] parts = line.split(",");
+						if (parts.length >= 2 && parts[0].equals(username) && parts[1].equals(password)) {
+							synchronized (Server.loggedInUsers) {
+								if (Server.loggedInUsers.contains(username)) {
+									// User already logged in
+									out.writeObject(new Message(MessageType.ALREADY_LOGGED_IN, "ALREADY_LOGGED_IN", null));
+									return;
+								}
+								// Mark user as logged in
+								Server.loggedInUsers.add(username);
+								this.clientUsername = username;
+								out.writeObject(new Message(MessageType.LOGIN, String.valueOf(true), null));
+							}
+							return;
+						}
+					}
+					// If we get here, credentials were invalid
+					out.writeObject(new Message(MessageType.LOGIN, "INVALID_CREDENTIALS", null));
+				} catch (IOException e) {
+					e.printStackTrace();
+					out.writeObject(new Message(MessageType.LOGIN, "ERROR", null));
+				}
+			}
+
+			public boolean isValidUser(String username){
+				try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))){
+					String line;
+					while ((line = reader.readLine()) != null){
+						String[] parts = line.split(",");
+						if (parts.length > 0 && parts[0].equals(username)){
+							return true;
+						}
+					}
+				} catch (IOException e){
+					e.printStackTrace();
+				}
+				return false;
+			}
+
+			private void addFriend(String username, String friendUsername) {
+				File file = new File("friends.txt");
+				Map<String, Set<String>> friendMap = new HashMap<>();
+				try {
+					if (!file.exists()) {
+						file.createNewFile();
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+				// ✅ read current data using ',' separator
+				try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+					String line;
+					while ((line = reader.readLine()) != null) {
+						String[] parts = line.split(",");
+						if (parts.length >= 1) {
+							String user = parts[0].trim();
+							Set<String> friends = new HashSet<>();
+							for (int i = 1; i < parts.length; i++) {
+								friends.add(parts[i].trim());
+							}
+							friendMap.put(user, friends);
+						}
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+				friendMap.putIfAbsent(username, new HashSet<>());
+				friendMap.get(username).add(friendUsername);
+
+				try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+					for (Map.Entry<String, Set<String>> entry : friendMap.entrySet()) {
+						String user = entry.getKey();
+						String friends = String.join(",", entry.getValue());
+						writer.write(user + (friends.isEmpty() ? "" : "," + friends));
+						writer.newLine();
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
+			public void updateUserStats(String username, String result) {
+				File file = new File("users.txt");
+				List<String> lines = new ArrayList<>();
+
+				try {
+					// Read the current file into memory
+					BufferedReader reader = new BufferedReader(new FileReader(file));
+					String line;
+					while ((line = reader.readLine()) != null) {
+						lines.add(line);
+					}
+					reader.close();
+
+					// Find the line for the current user and update the stats
+					for (int i = 0; i < lines.size(); i++) {
+						String[] userData = lines.get(i).split(",");
+						if (userData[0].equals(username)) {
+							int wins = Integer.parseInt(userData[2]);
+							int losses = Integer.parseInt(userData[3]);
+							int draws = Integer.parseInt(userData[4]);
+
+							switch (result) {
+								case "win":
+									wins++;
+									break;
+								case "loss":
+									losses++;
+									break;
+								case "draw":
+									draws++;
+									break;
+							}
+
+							// Update the user's data
+							lines.set(i, String.join(",", username, userData[1],
+									String.valueOf(wins), String.valueOf(losses), String.valueOf(draws)));
+							break;
+						}
+					}
+
+					// Write the updated data back to the file
+					BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+					for (String updatedLine : lines) {
+						writer.write(updatedLine);
+						writer.newLine();
+					}
+					writer.close();
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 
 			public void run(){
@@ -289,12 +459,44 @@ public class Server{
 										out.writeObject(new Message(MessageType.GAME_OVER, "You win!", null));
 										if (opponentOut != null)
 											opponentOut.writeObject(new Message(MessageType.GAME_OVER, "You lose!", null));
+
+										ClientThread winnerThread = clients.stream()
+												.filter(c -> c.count == game.getCurrentPlayer())
+												.findFirst()
+												.orElse(null);
+										ClientThread loserThread = clients.stream()
+												.filter(c -> c.count == game.getOtherPlayer(game.getCurrentPlayer()))
+												.findFirst()
+												.orElse(null);
+
+										if (winnerThread != null && winnerThread.clientUsername != null) {
+											updateUserStats(winnerThread.clientUsername, "win");
+										}
+										if (loserThread != null && loserThread.clientUsername != null) {
+											updateUserStats(loserThread.clientUsername, "loss");
+										}
 										break;
 									}
 									else if (game.checkDraw()) {
 										out.writeObject(new Message(MessageType.GAME_OVER, "Draw!", null));
 										if (opponentOut != null)
 											opponentOut.writeObject(new Message(MessageType.GAME_OVER, "Draw!", null));
+
+										ClientThread drawThread1 = clients.stream()
+												.filter(c -> c.count == game.getCurrentPlayer())
+												.findFirst()
+												.orElse(null);
+										ClientThread drawThread2 = clients.stream()
+												.filter(c -> c.count == game.getOtherPlayer(game.getCurrentPlayer()))
+												.findFirst()
+												.orElse(null);
+
+										if (drawThread1 != null && drawThread1.clientUsername != null) {
+											updateUserStats(drawThread1.clientUsername, "draw");
+										}
+										if (drawThread2 != null && drawThread2.clientUsername != null) {
+											updateUserStats(drawThread2.clientUsername, "draw");
+										}
 										break;
 									}
 
@@ -487,6 +689,15 @@ public class Server{
 									}
 									break;
 
+								case USERNPASS:
+									System.out.println("Creating username");
+									String[] parts = message.getMessage().split(",");
+									callback.accept(new Message(MessageType.TEXT, "Received username: " + parts[0].trim(), null));
+									callback.accept(new Message(MessageType.TEXT, "Received password: " + parts[1].trim(), null));
+									saveUser(parts[0], parts[1]);
+									callback.accept(new Message(MessageType.TEXT, "Saved username and password", null));
+									break;
+
 								case CANCEL_GAME_CREATION:
 									System.out.println("Client #" + count + " canceled game creation.");
 
@@ -498,14 +709,115 @@ public class Server{
 									}
 
 									break;
+
+								case GET_LEADERBOARD:
+									System.out.println("Getting leaderboard...");
+									List<String[]> userStats = new ArrayList<>();
+
+									try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))) {
+										String line;
+										while ((line = reader.readLine()) != null) {
+											String[] part = line.split(",");
+											if (part.length >= 5) {
+												String username = part[0];
+												int wins = Integer.parseInt(part[2]);
+												int losses = Integer.parseInt(part[3]);
+												int draws = Integer.parseInt(part[4]); // you originally had 0,0,0 (assumed draws is the 5th field)
+												userStats.add(new String[]{username, String.valueOf(wins), String.valueOf(losses), String.valueOf(draws)});
+											}
+										}
+
+										// Sort by number of wins (descending)
+										userStats.sort((a, b) -> Integer.compare(Integer.parseInt(b[1]), Integer.parseInt(a[1])));
+
+										// Convert to string format: username,wins,losses,draws
+										List<String> formatted = new ArrayList<>();
+										for (String[] user : userStats) {
+											formatted.add(String.join(",", user));
+										}
+
+										String leaderboardMessage = String.join(";", formatted);
+										out.writeObject(new Message(MessageType.LEADERBOARD, leaderboardMessage, null));
+
+									} catch (IOException e) {
+										System.err.println("Error reading leaderboard: " + e.getMessage());
+										callback.accept(new Message(MessageType.TEXT, "LEADERBOARD_ERROR", null));
+									}
+
+									break;
+
+								case LOGIN:
+									String[] information = message.getMessage().split(",");
+									callback.accept(new Message(MessageType.TEXT, "Received username: " + information[0].trim(), null));
+									callback.accept(new Message(MessageType.TEXT, "Received password: " + information[1].trim(), null));
+									checkCredentials(information[0], information[1]);
+									callback.accept(new Message(MessageType.TEXT, "Checking username and password", null));
+									out.writeObject(new Message(MessageType.USERNAME, clientUsername, null));
+									break;
+
+								case VIEW_ONLINE_USERS:
+									String loggedInUsersList = String.join(",", Server.loggedInUsers);
+									out.writeObject(new Message(MessageType.ONLINE_USERS, loggedInUsersList, null));
+									break;
+
+								case FRIEND_REQUEST_RESPONSE:
+									String requester = message.getRecipient();
+
+									// Find the original requester's client
+									for (ClientThread client : clients) {
+										if (client.clientUsername != null && client.clientUsername.equals(requester)) {
+											// Send the response back
+											Message responseMsg = new Message(MessageType.FRIEND_REQUEST_RESULT, message.getMessage(),  // "accept" or "reject"
+													message.getRecipient() // The original requester
+											);
+											client.out.writeObject(responseMsg);
+											break;
+										}
+									}
+									break;
+
+								case ADD_FRIEND:
+									String mainClient = message.getMessage();     // The user sending the request
+									String targetFriend = message.getRecipient(); // The target user to be added
+
+									// For logging/debugging
+									callback.accept(new Message(MessageType.TEXT, mainClient + " wants to add " + targetFriend, null));
+
+									// Proceed only if the target user exists
+									if (isValidUser(targetFriend)) {
+										// Add the friend in the database or file system
+										addFriend(mainClient, targetFriend);
+
+										// Now notify the target user, if they are online
+										for (ClientThread client : clients) {
+											if (client.clientUsername != null && client.clientUsername.equals(targetFriend)) {
+												Message forwardMsg = new Message(
+														MessageType.FRIEND_REQUEST_NOTIFICATION,
+														mainClient,     // So target knows who sent the request
+														targetFriend    // Recipient of the friend request
+												);
+												client.out.writeObject(forwardMsg);
+												break;
+											}
+										}
+									}
+									break;
 							}
 						}
-					    catch(Exception e) {
-					    	callback.accept(new Message(MessageType.DISCONNECT,"OOOOPPs...Something wrong with the socket from client: " + count + "....closing down!", null));
-					    	updateClients(new Message(MessageType.TEXT, "Client #"+count+" has left the server!", null));
-					    	clients.remove(this);
-					    	break;
-					    }
+						catch(Exception e) {
+							callback.accept(new Message(MessageType.DISCONNECT,"OOOOPPs...Something wrong with the socket from client: " + count + "....closing down!", null));
+							updateClients(new Message(MessageType.TEXT, "Client #"+count+" has left the server!", null));
+
+							// Remove from logged-in users set if this client was logged in
+							if (this.clientUsername != null) {
+								synchronized (Server.loggedInUsers) {
+									Server.loggedInUsers.remove(this.clientUsername);
+								}
+							}
+
+							clients.remove(this);
+							break;
+						}
 					}
 				}//end of run
 

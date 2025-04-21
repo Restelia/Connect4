@@ -1,0 +1,57 @@
+/* WELCOME SCENE */
+
+#welcome-title {
+    -fx-font-size: 42px;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-translate-y: -20;
+}
+
+#welcome-button {
+    -fx-background-color: #dc5c2d; /* Warm earthy orange */
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20;
+    -fx-padding: 10 20;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 5, 0.2, 0, 1);
+    -fx-pref-width: 160px; /* Set fixed width for consistent button size */
+    -fx-transition: all 0.3s ease-in-out;
+}
+
+#welcome-button:hover {
+    -fx-background-color: rgba(255, 122, 66, 1.0); /* Brighter on hover */
+    -fx-scale-x: 1.01;
+    -fx-scale-y: 1.01;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0.3, 0, 2);
+}
+
+
+/* NOTIFICATION */
+
+.notification-area {
+    -fx-mouse-transparent: true;  /* Allows clicks to pass through */
+    -fx-spacing: 10;
+    -fx-z-index: 1000;
+}
+
+.notification-card {
+    -fx-mouse-transparent: false; /* Makes cards clickable */
+    -fx-background-color: rgba(0,0,0,0.7);
+    -fx-background-radius: 5;
+    -fx-padding: 10;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 10, 0, 0, 0);
+}
+
+.notification-card .label {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+}
+
+.friend-request-card {
+    -fx-mouse-transparent: false; /* Makes friend request interactive */
+    -fx-background-color: rgba(40,120,200,0.9);
+    -fx-background-radius: 5;
+    -fx-padding: 10;
+}
