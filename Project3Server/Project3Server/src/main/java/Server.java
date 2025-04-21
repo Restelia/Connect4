@@ -321,6 +321,21 @@ public class Server{
 				}
 			}
 
+			public String getFriendsList(String username) {
+				try (BufferedReader reader = new BufferedReader(new FileReader("friends.txt"))) {
+					String line;
+					while ((line = reader.readLine()) != null) {
+						String[] parts = line.split(",");
+						if (parts.length > 1 && parts[0].equals(username)) {
+							return String.join(",", Arrays.copyOfRange(parts, 1, parts.length));
+						}
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return ""; // Return empty string if no friends or user not found
+			}
+
 			public void run(){
 
 				try {
@@ -801,6 +816,13 @@ public class Server{
 											}
 										}
 									}
+									break;
+
+								case VIEW_FRIENDS:
+									String username = message.getMessage(); // requesting user
+									String friends = getFriendsList(username); // "jane,john,tom"
+									Message response = new Message(MessageType.FRIENDS_LIST, friends, username);
+									out.writeObject(response);
 									break;
 							}
 						}

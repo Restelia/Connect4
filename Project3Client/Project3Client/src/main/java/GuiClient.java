@@ -35,8 +35,7 @@ public class GuiClient extends Application {
 	ListView<String> listItems2, gameListView;
 	Stage mainStage;
 	GridPane gameBoard;
-	StackPane rootPane;
-	Pane contentHolder;
+	StackPane rootPane;;
 	String currentPlayerId = "", currentUsername, localUsername;
 	boolean isMyTurn;
 	Label turnLabel, timerLabel, status, usernameLabel, welcomeLabel;
@@ -438,23 +437,24 @@ public class GuiClient extends Application {
 			returnToLobby();
 		});
 
-		Slider slider = new Slider(5, 50, 25); // Min 5, Max 50, default 25
-		slider.setShowTickLabels(true);
-		slider.setShowTickMarks(true);
-		slider.setMajorTickUnit(5);
-		slider.setMinorTickCount(4);
-		slider.setBlockIncrement(1);
+		Slider timerSlider = new Slider(5, 50, 25); // Min 5, Max 50, default 25
+		timerSlider.setShowTickLabels(true);
+		timerSlider.setShowTickMarks(true);
+		timerSlider.setMajorTickUnit(5);
+		timerSlider.setMinorTickCount(4);
+		timerSlider.setBlockIncrement(1);
 
 		Label timeLabel = new Label("Selected time: 25 seconds");
 
 		// Update the label whenever the slider is moved
-		slider.valueProperty().addListener((obs, oldVal, newVal) -> {
+		timerSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
 			int roundedVal = (int) Math.round(newVal.doubleValue());
 			timeLabel.setText("Selected time: " + roundedVal + " seconds");
 		});
 
-		VBox timeBox = new VBox(10, new Label("Pick time per turn:"), slider, timeLabel);
+		VBox timeBox = new VBox(10, new Label("Pick time per turn:"), timerSlider, timeLabel);
 		timeBox.setAlignment(Pos.CENTER);
+
 
 		// Optional AI section — not functional yet
 		HBox aiBox = new HBox(10, new Button("Yes"), new Button("No")); // Placeholder
@@ -469,7 +469,7 @@ public class GuiClient extends Application {
 		mainStage.setScene(sceneMap.get("settings"));
 
 		createGameBtn.setOnAction(e -> {
-			int selectedTime = (int) Math.round(slider.getValue());
+			int selectedTime = (int) Math.round(timerSlider.getValue());
 			// ✅ Send selected time in seconds as message to server
 			clientConnection.send(new Message(MessageType.CREATE_GAME, Integer.toString(selectedTime), null));
 			showWaitingScreen();
