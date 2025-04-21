@@ -208,6 +208,66 @@ public class Server{
 					out.writeObject(new Message(MessageType.LOGIN, "ERROR", null));
 				}
 			}
+
+			public boolean isValidUser(String username){
+				try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))){
+					String line;
+					while ((line = reader.readLine()) != null){
+						String[] parts = line.split(",");
+						if (parts.length > 0 && parts[0].equals(username)){
+							return true;
+						}
+					}
+				} catch (IOException e){
+					e.printStackTrace();
+				}
+				return false;
+			}
+
+			private void addFriend(String username, String friendUsername) {
+				File file = new File("friends.txt");
+				Map<String, Set<String>> friendMap = new HashMap<>();
+				try {
+					if (!file.exists()) {
+						file.createNewFile();
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+				// ✅ read current data using ',' separator
+				try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+					String line;
+					while ((line = reader.readLine()) != null) {
+						String[] parts = line.split(",");
+						if (parts.length >= 1) {
+							String user = parts[0].trim();
+							Set<String> friends = new HashSet<>();
+							for (int i = 1; i < parts.length; i++) {
+								friends.add(parts[i].trim());
+							}
+							friendMap.put(user, friends);
+						}
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+
+				friendMap.putIfAbsent(username, new HashSet<>());
+				friendMap.get(username).add(friendUsername);
+
+				try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+					for (Map.Entry<String, Set<String>> entry : friendMap.entrySet()) {
+						String user = entry.getKey();
+						String friends = String.join(",", entry.getValue());
+						writer.write(user + (friends.isEmpty() ? "" : "," + friends));
+						writer.newLine();
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+
 			public void updateUserStats(String username, String result) {
 				File file = new File("users.txt");
 				List<String> lines = new ArrayList<>();
@@ -699,23 +759,7 @@ public class Server{
 									String loggedInUsersList = String.join(",", Server.loggedInUsers);
 									out.writeObject(new Message(MessageType.ONLINE_USERS, loggedInUsersList, null));
 									break;
-								case FRIEND_REQUEST:
-									String targetUsername = message.getRecipient();
 
-									// Find the target client's output stream
-									for (ClientThread client : clients) {
-										if (client.clientUsername != null && client.clientUsername.equals(targetUsername)) {
-											// Forward the request to the target user
-											Message forwardMsg = new Message(
-													MessageType.FRIEND_REQUEST_NOTIFICATION,
-													message.getMessage(),  // The request message
-													message.getRecipient() // The target user
-											);
-											client.out.writeObject(forwardMsg);
-											break;
-										}
-									}
-									break;
 								case FRIEND_REQUEST_RESPONSE:
 									String requester = message.getRecipient();
 
@@ -732,6 +776,32 @@ public class Server{
 									}
 									break;
 
+								case ADD_FRIEND:
+									String mainClient = message.getMessage();     // The user sending the request
+									String targetFriend = message.getRecipient(); // The target user to be added
+
+									// For logging/debugging
+									callback.accept(new Message(MessageType.TEXT, mainClient + " wants to add " + targetFriend, null));
+
+									// Proceed only if the target user exists
+									if (isValidUser(targetFriend)) {
+										// Add the friend in the database or file system
+										addFriend(mainClient, targetFriend);
+
+										// Now notify the target user, if they are online
+										for (ClientThread client : clients) {
+											if (client.clientUsername != null && client.clientUsername.equals(targetFriend)) {
+												Message forwardMsg = new Message(
+														MessageType.FRIEND_REQUEST_NOTIFICATION,
+														mainClient,     // So target knows who sent the request
+														targetFriend    // Recipient of the friend request
+												);
+												client.out.writeObject(forwardMsg);
+												break;
+											}
+										}
+									}
+									break;
 							}
 						}
 						catch(Exception e) {

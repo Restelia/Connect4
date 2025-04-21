@@ -33,7 +33,7 @@ public class GuiClient extends Application {
 	GridPane gameBoard;
 	StackPane rootPane;
 	Pane contentHolder;
-	String currentPlayerId = "", currentUsername;
+	String currentPlayerId = "", currentUsername, localUsername;
 	boolean isMyTurn;
 	Label turnLabel, timerLabel, status, usernameLabel;
 	int turnSeconds, width=700, height=500;
@@ -74,6 +74,7 @@ public class GuiClient extends Application {
 					case USERNAME:
 						currentUsername = msg.getMessage();
 						usernameLabel.setText(currentUsername);
+						localUsername = currentUsername;
 						break;
 					case GAME_OVER:
 						showGameOver(msg.getMessage()); // Game over message
@@ -346,7 +347,8 @@ public class GuiClient extends Application {
 				notificationManager.showNotification("This is a test notification!")
 		);
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn, leaderBoardBtn, usersOnlineBtn, usernameLabel, testNotificationBtn);
+
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, usernameLabel, testNotificationBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 
@@ -664,7 +666,7 @@ public class GuiClient extends Application {
 			if (selectedUser != null) {
 				// Create and send a friend request message
 				Message friendRequest = new Message(
-						MessageType.FRIEND_REQUEST,
+						MessageType.ADD_FRIEND,
 						currentUsername,
 						selectedUser  // Send to the selected user
 				);
