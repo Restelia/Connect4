@@ -18,18 +18,16 @@ import java.util.stream.Collectors;
 public class GuiClient extends Application {
 
 	TextField c1, recipientField, username, password;
-	Button b1, createGameBtn, joinGameBtn, signInBtn, logInBtn, signUpBtn, leaderBoardBtn;
+	Button b1, createGameBtn, joinGameBtn, signInBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn;
 	HashMap<String, Scene> sceneMap;
 	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs;
 	Client clientConnection;
 	ListView<String> listItems2, gameListView;
 	Stage mainStage;
 	GridPane gameBoard;
-	String currentPlayerId = "";
+	String currentPlayerId = "", currentUsername;
 	boolean isMyTurn;
-	Label turnLabel; // Turn indicator label
-	Label timerLabel;
-	Label status;
+	Label turnLabel, timerLabel, status, usernameLabel;
 	int turnSeconds;
 	private Timer currentTimer;
 
@@ -63,6 +61,10 @@ public class GuiClient extends Application {
 						break;
 					case PLAYER_ID:
 						currentPlayerId = msg.getMessage();
+						break;
+					case USERNAME:
+						currentUsername = msg.getMessage();
+						usernameLabel.setText(currentUsername);
 						break;
 					case GAME_OVER:
 						showGameOver(msg.getMessage()); // Game over message
@@ -115,6 +117,9 @@ public class GuiClient extends Application {
 					case ALREADY_LOGGED_IN:
 						status.setText("USER ALREADY LOGGED IN");
 						status.setVisible(true);
+					case ONLINE_USERS:
+						showOnlineUsers(msg.getMessage().split(","));
+						break;
 					default:
 						listItems2.getItems().add(msg.toString());
 						break;
@@ -224,7 +229,8 @@ public class GuiClient extends Application {
 		createGameBtn = new Button("Create Game");
 		joinGameBtn = new Button("Join Game");
 		leaderBoardBtn = new Button("Leaderboard");
-		//onlineUsersBtn = new Button("Online Users");
+		usersOnlineBtn = new Button("Users Online");
+		usernameLabel = new Label();
 
 		createGameBtn.setOnAction(e -> {
 			showGameSettings();
@@ -239,7 +245,11 @@ public class GuiClient extends Application {
 			clientConnection.send(new Message(MessageType.GET_LEADERBOARD, "", null));
 		});
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn, leaderBoardBtn);
+		usersOnlineBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.VIEW_ONLINE_USERS, "", null));
+		});
+
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn, leaderBoardBtn, usersOnlineBtn, usernameLabel);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 		sceneMap.put("lobby", new Scene(lobbyBox, 400, 300));
@@ -536,6 +546,34 @@ public class GuiClient extends Application {
 
 	public void showLeaderBoardScene() {
 		mainStage.setScene(sceneMap.get("leaderboard"));
+	}
+
+	public void showOnlineUsers(String[] users) {
+		ListView<String> userListView = new ListView<>();
+
+		// Filter out the current user from the list
+		List<String> filteredUsers = Arrays.stream(users)
+				.filter(username -> !username.equals(currentUsername))
+				.collect(Collectors.toList());
+
+		userListView.getItems().setAll(filteredUsers);
+
+		Button closeBtn = new Button("Close");
+		closeBtn.setOnAction(e -> mainStage.setScene(sceneMap.get("lobby")));
+
+		// Update label to show count of online users (excluding yourself)
+		Label titleLabel = new Label("Currently Online Users (" + filteredUsers.size() + "):");
+
+		VBox box = new VBox(10,
+				titleLabel,
+				userListView,
+				closeBtn
+		);
+		box.setAlignment(Pos.CENTER);
+		box.setPadding(new Insets(20));
+
+		Scene onlineUsersScene = new Scene(box, 300, 400);
+		mainStage.setScene(onlineUsersScene);
 	}
 
 }

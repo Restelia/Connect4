@@ -189,6 +189,7 @@ public class Server{
 						if (parts.length >= 2 && parts[0].equals(username) && parts[1].equals(password)) {
 							synchronized (Server.loggedInUsers) {
 								if (Server.loggedInUsers.contains(username)) {
+									System.out.println("TOOO");
 									// User already logged in
 									out.writeObject(new Message(MessageType.ALREADY_LOGGED_IN, "ALREADY_LOGGED_IN", null));
 									return;
@@ -692,8 +693,13 @@ public class Server{
 									callback.accept(new Message(MessageType.TEXT, "Received password: " + information[1].trim(), null));
 									checkCredentials(information[0], information[1]);
 									callback.accept(new Message(MessageType.TEXT, "Checking username and password", null));
+									out.writeObject(new Message(MessageType.USERNAME, clientUsername, null));
 									break;
 
+								case VIEW_ONLINE_USERS:
+									String loggedInUsersList = String.join(",", Server.loggedInUsers);
+									out.writeObject(new Message(MessageType.ONLINE_USERS, loggedInUsersList, null));
+									break;
 							}
 						}
 						catch(Exception e) {
