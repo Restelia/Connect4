@@ -19,7 +19,7 @@ public class Server{
 	private final Consumer<Message> callback;
 
 	Map<String, ObjectOutputStream> clientOutputs = new HashMap<>();
-	Queue<Integer> waitingPlayers = new LinkedList<>();
+	Queue<Integer> waitingPlayers = new LinkedList<>(); // Created Game and waiting for someone to join
 	Map<Integer, Connect4Game> activeGames = new HashMap<>();  // Track active games by gameId
 	Map<Integer, Integer> rematchRequests = new HashMap<>();
 	Map<Integer, Integer> playerToGameId = new HashMap<>();
