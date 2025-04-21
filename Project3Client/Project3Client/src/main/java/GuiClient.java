@@ -1,3 +1,4 @@
+import javafx.animation.PauseTransition;
 import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -37,8 +38,8 @@ public class GuiClient extends Application {
 	boolean isMyTurn;
 	Label turnLabel, timerLabel, status, usernameLabel;
 	int turnSeconds, width=700, height=500;
-	private Timer currentTimer;
-	private NotificationManager notificationManager;
+	Timer currentTimer;
+	NotificationManager notificationManager;
 
     public static void main(String[] args) {
 		launch(args);
@@ -111,10 +112,9 @@ public class GuiClient extends Application {
 						break;
 					case LOGIN:
 						String response = msg.getMessage();
-						if (Boolean.parseBoolean(response)){
-							Platform.runLater(() -> {
-								mainStage.setScene(sceneMap.get("lobby"));
-							});
+						if (Boolean.parseBoolean(response)) {
+							createLobbyGui();
+							returnToLobby();
 						} else {
 							status.setText("INCORRECT USERNAME OR PASSWORD");
 							status.setVisible(true);
@@ -149,8 +149,7 @@ public class GuiClient extends Application {
 									requesterName
 							));
 							notificationManager.showNotification("You are now friends with " + requesterName);
-							friendRequestCard.setVisible(false);
-							notificationManager.removeNotification(friendRequestCard);
+							notificationArea.getChildren().remove(friendRequestCard);
 						});
 
 						Button rejectBtn = new Button("✕");
@@ -161,12 +160,21 @@ public class GuiClient extends Application {
 									"reject",
 									requesterName
 							));
-							friendRequestCard.setVisible(false);
-							notificationManager.removeNotification(friendRequestCard);
+							notificationArea.getChildren().remove(friendRequestCard);
 						});
 
 						friendRequestCard.getChildren().addAll(requestLabel, acceptBtn, rejectBtn);
 						Platform.runLater(() -> {
+							long friendRequestCount = notificationArea.getChildren().stream()
+									.filter(node -> node instanceof HBox)
+									.count();
+
+							if (friendRequestCount >= 3) {
+								// Optionally show a notification that limit has been reached
+								notificationManager.showNotification("Friend request limit reached (3 max)");
+								return;
+							}
+
 							notificationArea.getChildren().add(friendRequestCard);
 							if (!notificationArea.isVisible()) {
 								notificationArea.setVisible(true);
@@ -175,6 +183,13 @@ public class GuiClient extends Application {
 								showTransition.play();
 							}
 						});
+
+						PauseTransition delay = new PauseTransition(Duration.seconds(5));
+						delay.setOnFinished(ev -> {
+							notificationArea.getChildren().remove(friendRequestCard);
+						});
+						delay.play();
+
 						break;
 					default:
 						listItems2.getItems().add(msg.toString());
@@ -184,7 +199,6 @@ public class GuiClient extends Application {
 		});
 
 		clientConnection.start();
-		createLobbyGui();
 		createWelcomeScreen();
 		createGameGui();
 
@@ -311,7 +325,9 @@ public class GuiClient extends Application {
 		if (notificationArea.getParent() != null) {
 			((Pane) notificationArea.getParent()).getChildren().remove(notificationArea);
 		}
-		rootPane.getChildren().add(notificationArea); // Add last (ensures it's on top)
+
+		// Ensure notification area is on top
+		rootPane.getChildren().add(notificationArea);
 
 		Scene scene = new Scene(rootPane, width, height);
 		scene.getStylesheets().add(getClass().getResource("style.css").toExternalForm());
@@ -347,12 +363,33 @@ public class GuiClient extends Application {
 				notificationManager.showNotification("This is a test notification!")
 		);
 
-
 		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, usernameLabel, testNotificationBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 
-		sceneMap.put("lobby", createBaseScene(lobbyBox));
+		Scene lobbyScene = createBaseScene(lobbyBox);
+		sceneMap.put("lobby", lobbyScene);
+	}
+
+	public void returnToLobby() {
+		// Get the stored lobby scene
+		Scene lobbyScene = sceneMap.get("lobby");
+
+		// Ensure notification area is properly attached to the lobby scene
+		if (notificationArea != null && notificationArea.getParent() != null) {
+			((Pane) notificationArea.getParent()).getChildren().remove(notificationArea);
+		}
+
+		// Get the root pane of the lobby scene
+		StackPane lobbyRoot = (StackPane) lobbyScene.getRoot();
+
+		// Add notification area to the lobby root
+		if (notificationArea != null) {
+			lobbyRoot.getChildren().add(notificationArea);
+		}
+
+		// Set the scene
+		mainStage.setScene(lobbyScene);
 	}
 
 	public void showGameSettings() {
@@ -360,7 +397,7 @@ public class GuiClient extends Application {
 		Button backBtn = new Button("Back to Lobby");
 
 		backBtn.setOnAction(e -> {
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		Slider slider = new Slider(5, 50, 25); // Min 5, Max 50, default 25
@@ -408,7 +445,7 @@ public class GuiClient extends Application {
 
 		backBtn.setOnAction(e -> {
 			clientConnection.send(new Message(MessageType.CANCEL_GAME_CREATION, "", null));
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		box.getChildren().addAll(label, backBtn);
@@ -430,7 +467,7 @@ public class GuiClient extends Application {
 		});
 
 		backBtn.setOnAction(e -> {
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		VBox box = new VBox(10, new Label("Available Games:"), gameListView, joinSelectedBtn, backBtn);
@@ -588,7 +625,7 @@ public class GuiClient extends Application {
 
 		returnBtn.setOnAction(e -> {
 			clientConnection.send(new Message(MessageType.RETURN_TO_LOBBY, "", null));
-			mainStage.setScene(sceneMap.get("lobby"));
+			returnToLobby();
 		});
 
 		rematchBtn.setOnAction(e -> {
@@ -635,7 +672,7 @@ public class GuiClient extends Application {
 		winsCol.setSortType(TableColumn.SortType.DESCENDING);
 
 		Button backButton = new Button("Back to Lobby");
-		backButton.setOnAction(e -> mainStage.setScene(sceneMap.get("lobby")));
+		backButton.setOnAction(e -> returnToLobby());
 
 		VBox layout = new VBox(10, new Label("🏆 Leaderboard"), table, backButton);
 		layout.setAlignment(Pos.CENTER);
@@ -678,7 +715,7 @@ public class GuiClient extends Application {
 			}
 		});
 
-		closeBtn.setOnAction(e -> mainStage.setScene(sceneMap.get("lobby")));
+		closeBtn.setOnAction(e -> returnToLobby());
 
 		// Update label to show count of online users (excluding yourself)
 		Label titleLabel = new Label("Currently Online Users (" + filteredUsers.size() + "):");

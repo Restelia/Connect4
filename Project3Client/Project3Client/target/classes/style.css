@@ -1,6 +1,7 @@
 .notification-area {
     -fx-mouse-transparent: true;  /* Allows clicks to pass through */
     -fx-spacing: 10;
+    -fx-z-index: 1000;
 }
 
 .notification-card {
