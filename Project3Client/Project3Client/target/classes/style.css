@@ -1,3 +1,35 @@
+/* WELCOME SCENE */
+
+#welcome-title {
+    -fx-font-size: 42px;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+    -fx-translate-y: -20;
+}
+
+#welcome-button {
+    -fx-background-color: #dc5c2d; /* Warm earthy orange */
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20;
+    -fx-padding: 10 20;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 5, 0.2, 0, 1);
+    -fx-pref-width: 160px; /* Set fixed width for consistent button size */
+    -fx-transition: all 0.3s ease-in-out;
+}
+
+#welcome-button:hover {
+    -fx-background-color: rgba(255, 122, 66, 1.0); /* Brighter on hover */
+    -fx-scale-x: 1.01;
+    -fx-scale-y: 1.01;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0.3, 0, 2);
+}
+
+
+/* NOTIFICATION */
+
 .notification-area {
     -fx-mouse-transparent: true;  /* Allows clicks to pass through */
     -fx-spacing: 10;

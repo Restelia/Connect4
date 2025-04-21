@@ -10,6 +10,9 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.effect.GaussianBlur;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -25,7 +28,7 @@ import java.util.stream.Collectors;
 public class GuiClient extends Application {
 
 	TextField c1, recipientField, username, password;
-	Button b1, createGameBtn, joinGameBtn, signInBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn;
+	Button b1, createGameBtn, joinGameBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn, friendsListBtn;
 	HashMap<String, Scene> sceneMap;
 	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs, notificationArea;
 	Client clientConnection;
@@ -36,7 +39,7 @@ public class GuiClient extends Application {
 	Pane contentHolder;
 	String currentPlayerId = "", currentUsername, localUsername;
 	boolean isMyTurn;
-	Label turnLabel, timerLabel, status, usernameLabel;
+	Label turnLabel, timerLabel, status, usernameLabel, welcomeLabel;
 	int turnSeconds, width=700, height=500;
 	Timer currentTimer;
 	NotificationManager notificationManager;
@@ -189,8 +192,13 @@ public class GuiClient extends Application {
 							notificationArea.getChildren().remove(friendRequestCard);
 						});
 						delay.play();
-
 						break;
+
+					case FRIENDS_LIST:
+						String[] friends = msg.getMessage().split(",");
+						Platform.runLater(() -> showFriendsList(friends));
+						break;
+
 					default:
 						listItems2.getItems().add(msg.toString());
 						break;
@@ -213,8 +221,24 @@ public class GuiClient extends Application {
 	}
 
 	public void createWelcomeScreen(){
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(700);  // or use scene width binding
+		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setPreserveRatio(false);
+
+		// Apply blur effect
+		GaussianBlur blur = new GaussianBlur(20);
+		backgroundView.setEffect(blur);
+
 		signUpBtn = new Button("Sign Up");
 		logInBtn = new Button("Log in");
+
+		signUpBtn.setId("welcome-button");
+		logInBtn.setId("welcome-button");
+
+		welcomeLabel = new Label("Welcome to Connect 4");
+		welcomeLabel.setId("welcome-title");
 
 		signUpBtn.setOnAction(e -> {
 			signUpScreen();
@@ -226,10 +250,19 @@ public class GuiClient extends Application {
 			mainStage.setScene(sceneMap.get("login"));
 		});
 
-		accountBox = new VBox(15, signUpBtn, logInBtn);
+		VBox buttonBox = new VBox(15, signUpBtn, logInBtn);
+		buttonBox.setAlignment(Pos.CENTER);
+
+		accountBox = new VBox(30, welcomeLabel, buttonBox);
 		accountBox.setAlignment(Pos.CENTER);
-		accountBox.setPadding(new Insets(20));
-		sceneMap.put("welcome", createBaseScene(accountBox));
+		accountBox.setPadding(new Insets(50));
+		accountBox.setId("welcome-box");
+
+		StackPane root = new StackPane(backgroundView, accountBox);
+
+		Scene scene = createBaseScene(root);
+		scene.getStylesheets().add(getClass().getResource("style.css").toExternalForm());
+		sceneMap.put("welcome", scene);
 	}
 
 	public void signUpScreen(){
@@ -339,6 +372,7 @@ public class GuiClient extends Application {
 		joinGameBtn = new Button("Join Game");
 		leaderBoardBtn = new Button("Leaderboard");
 		usersOnlineBtn = new Button("Users Online");
+		friendsListBtn = new Button("Friends List");
 		usernameLabel = new Label();
 
 		createGameBtn.setOnAction(e -> {
@@ -358,12 +392,16 @@ public class GuiClient extends Application {
 			clientConnection.send(new Message(MessageType.VIEW_ONLINE_USERS, "", null));
 		});
 
+		friendsListBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.VIEW_FRIENDS, currentUsername, null));
+		});
+
 		Button testNotificationBtn = new Button("Test Notification");
 		testNotificationBtn.setOnAction(e ->
 				notificationManager.showNotification("This is a test notification!")
 		);
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, usernameLabel, testNotificationBtn);
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, friendsListBtn, usernameLabel, testNotificationBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 
@@ -730,5 +768,26 @@ public class GuiClient extends Application {
 
 		Scene onlineUsersScene = createBaseScene(box);
 		mainStage.setScene(onlineUsersScene);
+	}
+
+	public void showFriendsList(String[] friends) {
+		ListView<String> friendsListView = new ListView<>();
+		friendsListView.getItems().setAll(friends);
+
+		Button closeBtn = new Button("Close");
+		closeBtn.setOnAction(e -> returnToLobby());
+
+		Label titleLabel = new Label("Your Friends (" + friends.length + "):");
+
+		VBox box = new VBox(10,
+				titleLabel,
+				friendsListView,
+				new HBox(10, closeBtn)
+		);
+		box.setAlignment(Pos.CENTER);
+		box.setPadding(new Insets(20));
+
+		Scene friendsScene = createBaseScene(box);
+		mainStage.setScene(friendsScene);
 	}
 }
