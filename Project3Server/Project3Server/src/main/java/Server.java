@@ -183,13 +183,12 @@ public class Server{
 			public void checkCredentials(String username, String password) throws IOException {
 				try (BufferedReader reader = new BufferedReader(new FileReader("users.txt"))) {
 					String line;
+					callback.accept(new Message(MessageType.TEXT, "Checking username and password in the database", null));
 					while ((line = reader.readLine()) != null) {
 						String[] parts = line.split(",");
-						callback.accept(new Message(MessageType.TEXT, "Checking username and password in the database", null));
 						if (parts.length >= 2 && parts[0].equals(username) && parts[1].equals(password)) {
 							synchronized (Server.loggedInUsers) {
 								if (Server.loggedInUsers.contains(username)) {
-									System.out.println("TOOO");
 									// User already logged in
 									out.writeObject(new Message(MessageType.ALREADY_LOGGED_IN, "ALREADY_LOGGED_IN", null));
 									return;
@@ -700,6 +699,41 @@ public class Server{
 									String loggedInUsersList = String.join(",", Server.loggedInUsers);
 									out.writeObject(new Message(MessageType.ONLINE_USERS, loggedInUsersList, null));
 									break;
+								case FRIEND_REQUEST:
+									String targetUsername = message.getRecipient();
+
+									// Find the target client's output stream
+									for (ClientThread client : clients) {
+										if (client.clientUsername != null && client.clientUsername.equals(targetUsername)) {
+											// Forward the request to the target user
+											Message forwardMsg = new Message(
+													MessageType.FRIEND_REQUEST_NOTIFICATION,
+													message.getMessage(),  // The request message
+													message.getRecipient() // The target user
+											);
+											client.out.writeObject(forwardMsg);
+											break;
+										}
+									}
+									break;
+								case FRIEND_REQUEST_RESPONSE:
+									String requester = message.getRecipient();
+
+									// Find the original requester's client
+									for (ClientThread client : clients) {
+										if (client.clientUsername != null && client.clientUsername.equals(requester)) {
+											// Send the response back
+											Message responseMsg = new Message(
+													MessageType.FRIEND_REQUEST_RESULT,
+													message.getMessage(),  // "accept" or "reject"
+													message.getRecipient() // The original requester
+											);
+											client.out.writeObject(responseMsg);
+											break;
+										}
+									}
+									break;
+
 							}
 						}
 						catch(Exception e) {

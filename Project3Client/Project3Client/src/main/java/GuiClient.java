@@ -9,7 +9,9 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 
 import java.util.*;
@@ -28,7 +30,7 @@ public class GuiClient extends Application {
 	String currentPlayerId = "", currentUsername;
 	boolean isMyTurn;
 	Label turnLabel, timerLabel, status, usernameLabel;
-	int turnSeconds;
+	int turnSeconds, width=700, height=500;
 	private Timer currentTimer;
 
 	public static void main(String[] args) {
@@ -117,8 +119,12 @@ public class GuiClient extends Application {
 					case ALREADY_LOGGED_IN:
 						status.setText("USER ALREADY LOGGED IN");
 						status.setVisible(true);
+						break;
 					case ONLINE_USERS:
 						showOnlineUsers(msg.getMessage().split(","));
+						break;
+					case FRIEND_REQUEST_NOTIFICATION:
+						showFriendRequestNotification(msg.getMessage());
 						break;
 					default:
 						listItems2.getItems().add(msg.toString());
@@ -159,7 +165,7 @@ public class GuiClient extends Application {
 		accountBox = new VBox(15, signUpBtn, logInBtn);
 		accountBox.setAlignment(Pos.CENTER);
 		accountBox.setPadding(new Insets(20));
-		sceneMap.put("welcome", new Scene(accountBox, 400, 300));
+		sceneMap.put("welcome", new Scene(accountBox, width, height));
 	}
 
 	public void signUpScreen(){
@@ -178,6 +184,11 @@ public class GuiClient extends Application {
 
 		signUpBtn2.setOnAction(e -> {
 			String combined = username.getText() + "," + password.getText();
+			if (username.getText().trim().isEmpty() || password.getText().trim().isEmpty()){
+				status.setText("Username and password cannot be empty.");
+				status.setVisible(true);
+				return;
+			}
 			clientConnection.send(new Message(MessageType.USERNPASS, combined, null));
 			status.setVisible(true);
 		});
@@ -190,7 +201,7 @@ public class GuiClient extends Application {
 		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
-		sceneMap.put("signup", new Scene(signUpBox, 400, 300));
+		sceneMap.put("signup", new Scene(signUpBox, width, height));
 
 	}
 
@@ -210,6 +221,11 @@ public class GuiClient extends Application {
 
 		logInBtn2.setOnAction(e -> {
 			String combined = username.getText() + "," + password.getText();
+			if (username.getText().trim().isEmpty() || password.getText().trim().isEmpty()){
+				status.setText("Username and password cannot be empty.");
+				status.setVisible(true);
+				return;
+			}
 			clientConnection.send(new Message(MessageType.LOGIN, combined, null));
 		});
 
@@ -221,7 +237,7 @@ public class GuiClient extends Application {
 		signUpBox = new VBox(15, userInputs, logInBtn2, backBtn, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
-		sceneMap.put("login", new Scene(signUpBox, 400, 300));
+		sceneMap.put("login", new Scene(signUpBox, width, height));
 
 	}
 
@@ -252,7 +268,7 @@ public class GuiClient extends Application {
 		lobbyBox = new VBox(15, createGameBtn, joinGameBtn, leaderBoardBtn, usersOnlineBtn, usernameLabel);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
-		sceneMap.put("lobby", new Scene(lobbyBox, 400, 300));
+		sceneMap.put("lobby", new Scene(lobbyBox, width, height));
 	}
 
 	public void showGameSettings() {
@@ -290,7 +306,7 @@ public class GuiClient extends Application {
 		layout.setAlignment(Pos.CENTER);
 		layout.setPadding(new Insets(20));
 
-		sceneMap.put("settings", new Scene(layout, 400, 300));
+		sceneMap.put("settings", new Scene(layout, width, height));
 		mainStage.setScene(sceneMap.get("settings"));
 
 		createGameBtn.setOnAction(e -> {
@@ -313,7 +329,7 @@ public class GuiClient extends Application {
 
 		box.getChildren().addAll(label, backBtn);
 		box.setAlignment(Pos.CENTER);
-		sceneMap.put("waiting", new Scene(box, 400, 300));
+		sceneMap.put("waiting", new Scene(box, width, height));
 		mainStage.setScene(sceneMap.get("waiting"));
 	}
 
@@ -335,7 +351,7 @@ public class GuiClient extends Application {
 
 		VBox box = new VBox(10, new Label("Available Games:"), gameListView, joinSelectedBtn, backBtn);
 		box.setPadding(new Insets(10));
-		sceneMap.put("gameList", new Scene(box, 400, 300));
+		sceneMap.put("gameList", new Scene(box, width, height));
 		mainStage.setScene(sceneMap.get("gameList"));
 	}
 
@@ -404,7 +420,7 @@ public class GuiClient extends Application {
 
 		HBox gameSceneHBox = new HBox(10, gameBox, clientBox);
 
-		sceneMap.put("game", new Scene(gameSceneHBox, 700, 500));
+		sceneMap.put("game", new Scene(gameSceneHBox, width, 500));
 	}
 
 	public void updateBoard(String boardString) {
@@ -506,7 +522,7 @@ public class GuiClient extends Application {
 		);
 		box.setAlignment(Pos.CENTER);
 		box.setPadding(new Insets(20));
-		sceneMap.put("gameOver", new Scene(box, 400, 300));
+		sceneMap.put("gameOver", new Scene(box, 700, 500));
 		mainStage.setScene(sceneMap.get("gameOver"));
 	}
 
@@ -541,7 +557,7 @@ public class GuiClient extends Application {
 		layout.setAlignment(Pos.CENTER);
 		layout.setPadding(new Insets(20));
 
-		sceneMap.put("leaderboard", new Scene(layout, 600, 400));
+		sceneMap.put("leaderboard", new Scene(layout, 700, 500));
 	}
 
 	public void showLeaderBoardScene() {
@@ -558,7 +574,26 @@ public class GuiClient extends Application {
 
 		userListView.getItems().setAll(filteredUsers);
 
+		Button sendRequestBtn = new Button("Send Friend Request");
 		Button closeBtn = new Button("Close");
+
+		sendRequestBtn.setOnAction(e -> {
+			String selectedUser = userListView.getSelectionModel().getSelectedItem();
+			if (selectedUser != null) {
+				// Create and send a friend request message
+				Message friendRequest = new Message(
+						MessageType.FRIEND_REQUEST,
+						currentUsername + " wants to be your friend!",
+						selectedUser  // Send to the selected user
+				);
+				clientConnection.send(friendRequest);
+
+				// Show confirmation to the sender
+				status.setText("Friend request sent to " + selectedUser);
+				status.setVisible(true);
+			}
+		});
+
 		closeBtn.setOnAction(e -> mainStage.setScene(sceneMap.get("lobby")));
 
 		// Update label to show count of online users (excluding yourself)
@@ -567,13 +602,61 @@ public class GuiClient extends Application {
 		VBox box = new VBox(10,
 				titleLabel,
 				userListView,
-				closeBtn
+				new HBox(10, sendRequestBtn, closeBtn) // Put buttons side by side
 		);
 		box.setAlignment(Pos.CENTER);
 		box.setPadding(new Insets(20));
 
-		Scene onlineUsersScene = new Scene(box, 300, 400);
+		Scene onlineUsersScene = new Scene(box, width, height);
 		mainStage.setScene(onlineUsersScene);
 	}
 
+	public void showFriendRequestNotification(String requesterName) {
+		Platform.runLater(() -> {
+			Stage notificationStage = new Stage();
+			notificationStage.initStyle(StageStyle.UTILITY);
+			notificationStage.initModality(Modality.NONE);
+
+			VBox box = new VBox(10);
+			box.setPadding(new Insets(15));
+			box.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #ccc;");
+
+			Label message = new Label(requesterName + " wants to be your friend!");
+			HBox buttons = new HBox(10);
+			Button acceptBtn = new Button("Accept");
+			Button rejectBtn = new Button("Reject");
+
+			acceptBtn.setOnAction(e -> {
+				clientConnection.send(new Message(
+						MessageType.FRIEND_REQUEST_RESPONSE,
+						"accept",
+						requesterName
+				));
+				notificationStage.close();
+			});
+
+			rejectBtn.setOnAction(e -> {
+				clientConnection.send(new Message(
+						MessageType.FRIEND_REQUEST_RESPONSE,
+						"reject",
+						requesterName
+				));
+				notificationStage.close();
+			});
+
+			buttons.getChildren().addAll(acceptBtn, rejectBtn);
+			box.getChildren().addAll(message, buttons);
+
+			Scene scene = new Scene(box);
+			notificationStage.setScene(scene);
+
+			// Position at bottom right of main window
+			double x = mainStage.getX() + mainStage.getWidth() - scene.getWidth();
+			double y = mainStage.getY() + mainStage.getHeight() - scene.getHeight();
+			notificationStage.setX(x);
+			notificationStage.setY(y);
+
+			notificationStage.show();
+		});
+	}
 }
