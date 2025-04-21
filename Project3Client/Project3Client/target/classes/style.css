@@ -1,0 +1,24 @@
+.notification-area {
+    -fx-mouse-transparent: true;  /* Allows clicks to pass through */
+    -fx-spacing: 10;
+}
+
+.notification-card {
+    -fx-mouse-transparent: false; /* Makes cards clickable */
+    -fx-background-color: rgba(0,0,0,0.7);
+    -fx-background-radius: 5;
+    -fx-padding: 10;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 10, 0, 0, 0);
+}
+
+.notification-card .label {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+}
+
+.friend-request-card {
+    -fx-mouse-transparent: false; /* Makes friend request interactive */
+    -fx-background-color: rgba(40,120,200,0.9);
+    -fx-background-radius: 5;
+    -fx-padding: 10;
+}

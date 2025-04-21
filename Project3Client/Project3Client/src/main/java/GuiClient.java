@@ -1,18 +1,22 @@
+import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
+import javafx.util.Duration;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,18 +26,21 @@ public class GuiClient extends Application {
 	TextField c1, recipientField, username, password;
 	Button b1, createGameBtn, joinGameBtn, signInBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn;
 	HashMap<String, Scene> sceneMap;
-	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs;
+	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs, notificationArea;
 	Client clientConnection;
 	ListView<String> listItems2, gameListView;
 	Stage mainStage;
 	GridPane gameBoard;
+	StackPane rootPane;
+	Pane contentHolder;
 	String currentPlayerId = "", currentUsername;
 	boolean isMyTurn;
 	Label turnLabel, timerLabel, status, usernameLabel;
 	int turnSeconds, width=700, height=500;
 	private Timer currentTimer;
+	private NotificationManager notificationManager;
 
-	public static void main(String[] args) {
+    public static void main(String[] args) {
 		launch(args);
 	}
 
@@ -124,7 +131,49 @@ public class GuiClient extends Application {
 						showOnlineUsers(msg.getMessage().split(","));
 						break;
 					case FRIEND_REQUEST_NOTIFICATION:
-						showFriendRequestNotification(msg.getMessage());
+						String requesterName = msg.getMessage();
+						HBox friendRequestCard = new HBox(10);
+						friendRequestCard.setAlignment(Pos.CENTER_LEFT);
+						friendRequestCard.setStyle("-fx-background-color: rgba(40,120,200,0.9); -fx-background-radius: 5; -fx-padding: 10;");
+
+						Label requestLabel = new Label(requesterName + " wants to be your friend!");
+						requestLabel.setTextFill(Color.WHITE);
+
+						Button acceptBtn = new Button("✓");
+						acceptBtn.setStyle("-fx-background-color: rgba(0,200,0,0.7); -fx-text-fill: white;");
+						acceptBtn.setOnAction(e -> {
+							clientConnection.send(new Message(
+									MessageType.FRIEND_REQUEST_RESPONSE,
+									"accept",
+									requesterName
+							));
+							notificationManager.showNotification("You are now friends with " + requesterName);
+							friendRequestCard.setVisible(false);
+							notificationManager.removeNotification(friendRequestCard);
+						});
+
+						Button rejectBtn = new Button("✕");
+						rejectBtn.setStyle("-fx-background-color: rgba(200,0,0,0.7); -fx-text-fill: white;");
+						rejectBtn.setOnAction(e -> {
+							clientConnection.send(new Message(
+									MessageType.FRIEND_REQUEST_RESPONSE,
+									"reject",
+									requesterName
+							));
+							friendRequestCard.setVisible(false);
+							notificationManager.removeNotification(friendRequestCard);
+						});
+
+						friendRequestCard.getChildren().addAll(requestLabel, acceptBtn, rejectBtn);
+						Platform.runLater(() -> {
+							notificationArea.getChildren().add(friendRequestCard);
+							if (!notificationArea.isVisible()) {
+								notificationArea.setVisible(true);
+								TranslateTransition showTransition = new TranslateTransition(Duration.millis(300), notificationArea);
+								showTransition.setToY(0);
+								showTransition.play();
+							}
+						});
 						break;
 					default:
 						listItems2.getItems().add(msg.toString());
@@ -165,7 +214,7 @@ public class GuiClient extends Application {
 		accountBox = new VBox(15, signUpBtn, logInBtn);
 		accountBox.setAlignment(Pos.CENTER);
 		accountBox.setPadding(new Insets(20));
-		sceneMap.put("welcome", new Scene(accountBox, width, height));
+		sceneMap.put("welcome", createBaseScene(accountBox));
 	}
 
 	public void signUpScreen(){
@@ -201,7 +250,7 @@ public class GuiClient extends Application {
 		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
-		sceneMap.put("signup", new Scene(signUpBox, width, height));
+		sceneMap.put("signup", createBaseScene(signUpBox));
 
 	}
 
@@ -237,8 +286,35 @@ public class GuiClient extends Application {
 		signUpBox = new VBox(15, userInputs, logInBtn2, backBtn, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
-		sceneMap.put("login", new Scene(signUpBox, width, height));
+		sceneMap.put("login", createBaseScene(signUpBox));
+	}
 
+	public Scene createBaseScene(Pane content) {
+        // root for the whole app
+		rootPane = new StackPane();
+		rootPane.getChildren().add(content);
+
+		// Create notification area (only once)
+		if (notificationArea == null) {
+			notificationArea = new VBox(5);
+			notificationArea.setAlignment(Pos.BOTTOM_RIGHT);
+			notificationArea.setPadding(new Insets(10));
+			notificationArea.setTranslateY(100);
+			notificationArea.setVisible(false);
+			notificationArea.setPickOnBounds(false);
+
+			notificationManager = new NotificationManager(notificationArea);
+			notificationArea.getStyleClass().add("notification-area");
+		}
+
+		if (notificationArea.getParent() != null) {
+			((Pane) notificationArea.getParent()).getChildren().remove(notificationArea);
+		}
+		rootPane.getChildren().add(notificationArea); // Add last (ensures it's on top)
+
+		Scene scene = new Scene(rootPane, width, height);
+		scene.getStylesheets().add(getClass().getResource("style.css").toExternalForm());
+		return scene;
 	}
 
 	public void createLobbyGui() {
@@ -265,10 +341,16 @@ public class GuiClient extends Application {
 			clientConnection.send(new Message(MessageType.VIEW_ONLINE_USERS, "", null));
 		});
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn, leaderBoardBtn, usersOnlineBtn, usernameLabel);
+		Button testNotificationBtn = new Button("Test Notification");
+		testNotificationBtn.setOnAction(e ->
+				notificationManager.showNotification("This is a test notification!")
+		);
+
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn, leaderBoardBtn, usersOnlineBtn, usernameLabel, testNotificationBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
-		sceneMap.put("lobby", new Scene(lobbyBox, width, height));
+
+		sceneMap.put("lobby", createBaseScene(lobbyBox));
 	}
 
 	public void showGameSettings() {
@@ -306,7 +388,7 @@ public class GuiClient extends Application {
 		layout.setAlignment(Pos.CENTER);
 		layout.setPadding(new Insets(20));
 
-		sceneMap.put("settings", new Scene(layout, width, height));
+		sceneMap.put("settings", createBaseScene(layout));
 		mainStage.setScene(sceneMap.get("settings"));
 
 		createGameBtn.setOnAction(e -> {
@@ -329,7 +411,7 @@ public class GuiClient extends Application {
 
 		box.getChildren().addAll(label, backBtn);
 		box.setAlignment(Pos.CENTER);
-		sceneMap.put("waiting", new Scene(box, width, height));
+		sceneMap.put("waiting", createBaseScene(box));
 		mainStage.setScene(sceneMap.get("waiting"));
 	}
 
@@ -351,7 +433,7 @@ public class GuiClient extends Application {
 
 		VBox box = new VBox(10, new Label("Available Games:"), gameListView, joinSelectedBtn, backBtn);
 		box.setPadding(new Insets(10));
-		sceneMap.put("gameList", new Scene(box, width, height));
+		sceneMap.put("gameList", createBaseScene(box));
 		mainStage.setScene(sceneMap.get("gameList"));
 	}
 
@@ -420,7 +502,7 @@ public class GuiClient extends Application {
 
 		HBox gameSceneHBox = new HBox(10, gameBox, clientBox);
 
-		sceneMap.put("game", new Scene(gameSceneHBox, width, 500));
+		sceneMap.put("game", createBaseScene(gameSceneHBox));
 	}
 
 	public void updateBoard(String boardString) {
@@ -522,7 +604,7 @@ public class GuiClient extends Application {
 		);
 		box.setAlignment(Pos.CENTER);
 		box.setPadding(new Insets(20));
-		sceneMap.put("gameOver", new Scene(box, 700, 500));
+		sceneMap.put("gameOver", createBaseScene(box));
 		mainStage.setScene(sceneMap.get("gameOver"));
 	}
 
@@ -557,7 +639,7 @@ public class GuiClient extends Application {
 		layout.setAlignment(Pos.CENTER);
 		layout.setPadding(new Insets(20));
 
-		sceneMap.put("leaderboard", new Scene(layout, 700, 500));
+		sceneMap.put("leaderboard", createBaseScene(layout));
 	}
 
 	public void showLeaderBoardScene() {
@@ -583,7 +665,7 @@ public class GuiClient extends Application {
 				// Create and send a friend request message
 				Message friendRequest = new Message(
 						MessageType.FRIEND_REQUEST,
-						currentUsername + " wants to be your friend!",
+						currentUsername,
 						selectedUser  // Send to the selected user
 				);
 				clientConnection.send(friendRequest);
@@ -607,56 +689,7 @@ public class GuiClient extends Application {
 		box.setAlignment(Pos.CENTER);
 		box.setPadding(new Insets(20));
 
-		Scene onlineUsersScene = new Scene(box, width, height);
+		Scene onlineUsersScene = createBaseScene(box);
 		mainStage.setScene(onlineUsersScene);
-	}
-
-	public void showFriendRequestNotification(String requesterName) {
-		Platform.runLater(() -> {
-			Stage notificationStage = new Stage();
-			notificationStage.initStyle(StageStyle.UTILITY);
-			notificationStage.initModality(Modality.NONE);
-
-			VBox box = new VBox(10);
-			box.setPadding(new Insets(15));
-			box.setStyle("-fx-background-color: #f0f0f0; -fx-border-color: #ccc;");
-
-			Label message = new Label(requesterName + " wants to be your friend!");
-			HBox buttons = new HBox(10);
-			Button acceptBtn = new Button("Accept");
-			Button rejectBtn = new Button("Reject");
-
-			acceptBtn.setOnAction(e -> {
-				clientConnection.send(new Message(
-						MessageType.FRIEND_REQUEST_RESPONSE,
-						"accept",
-						requesterName
-				));
-				notificationStage.close();
-			});
-
-			rejectBtn.setOnAction(e -> {
-				clientConnection.send(new Message(
-						MessageType.FRIEND_REQUEST_RESPONSE,
-						"reject",
-						requesterName
-				));
-				notificationStage.close();
-			});
-
-			buttons.getChildren().addAll(acceptBtn, rejectBtn);
-			box.getChildren().addAll(message, buttons);
-
-			Scene scene = new Scene(box);
-			notificationStage.setScene(scene);
-
-			// Position at bottom right of main window
-			double x = mainStage.getX() + mainStage.getWidth() - scene.getWidth();
-			double y = mainStage.getY() + mainStage.getHeight() - scene.getHeight();
-			notificationStage.setX(x);
-			notificationStage.setY(y);
-
-			notificationStage.show();
-		});
 	}
 }

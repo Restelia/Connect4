@@ -723,9 +723,7 @@ public class Server{
 									for (ClientThread client : clients) {
 										if (client.clientUsername != null && client.clientUsername.equals(requester)) {
 											// Send the response back
-											Message responseMsg = new Message(
-													MessageType.FRIEND_REQUEST_RESULT,
-													message.getMessage(),  // "accept" or "reject"
+											Message responseMsg = new Message(MessageType.FRIEND_REQUEST_RESULT, message.getMessage(),  // "accept" or "reject"
 													message.getRecipient() // The original requester
 											);
 											client.out.writeObject(responseMsg);
