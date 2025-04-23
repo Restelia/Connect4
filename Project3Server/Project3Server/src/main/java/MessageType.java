@@ -34,5 +34,6 @@ public enum MessageType {
     FRIEND_REQUEST_RESULT,
     ADD_FRIEND,
     VIEW_FRIENDS,
-    FRIENDS_LIST
+    FRIENDS_LIST,
+    LOG_OUT
 }
