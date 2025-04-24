@@ -103,16 +103,15 @@
     -fx-effect: dropshadow(gaussian, rgba(220,92,45,0.2), 5, 0.3, 0, 2);
 }
 
-/* GAME SCENE */
 /* Main container styles */
 .root {
-    -fx-background-color: #f5f5f5;
+    -fx-background-color: transparent;
     -fx-padding: 20;
 }
 
 /* Game area styles */
 .game-container {
-    -fx-background-color: white;
+    -fx-background-color: rgba(146, 162, 133, 0.15); /* translucent sage green */
     -fx-background-radius: 10;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);
     -fx-padding: 20;
@@ -122,38 +121,27 @@
 .game-title {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
-    -fx-text-fill: #333;
+    -fx-text-fill: #5a4a3a;
 }
 
-.turn-label {
+.turn-label, .timer-label {
     -fx-font-size: 16px;
     -fx-font-weight: bold;
     -fx-text-fill: #dc5c2d;
 }
 
-.timer-label {
-    -fx-font-size: 16px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #333;
-}
-
 .game-board {
-    -fx-background-color: white;
+    -fx-background-color: #92a285;
     -fx-background-radius: 8;
     -fx-padding: 15;
 }
 
-/* Game cell styles */
 .game-cell {
     -fx-background-color: #e0e0e0;
     -fx-background-radius: 30;
     -fx-border-radius: 30;
     -fx-pref-width: 60;
     -fx-pref-height: 60;
-    -fx-min-width: 60;
-    -fx-min-height: 60;
-    -fx-max-width: 60;
-    -fx-max-height: 60;
 }
 
 .game-cell-player1 {
@@ -168,40 +156,77 @@
 
 /* Chat area styles */
 .chat-container {
-    -fx-background-color: white;
+    -fx-background-color: rgba(220, 92, 45, 0.08); /* translucent warm orange */
     -fx-background-radius: 10;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);
     -fx-padding: 20;
     -fx-spacing: 15;
 }
 
+/* Special case for ComboBox to match width */
+.combo-box,
+.combo-box .list-cell {
+    -fx-pref-width: 250px;
+    -fx-max-width: 250px;
+}
+
+/* Keep button height normal */
+.send-button {
+    -fx-min-width: 250px;
+    -fx-pref-width: 250px;
+    -fx-max-width: 250px;
+    -fx-min-height: 35px;
+    -fx-pref-height: 35px;
+    -fx-max-height: 35px;
+    -fx-background-color: #dc5c2d;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5;
+    -fx-padding: 0; /* Remove default padding */
+}
+
+/* Make text fields and combo box same height */
+.chat-input,
+.recipient-input,
+.combo-box {
+    -fx-pref-height: 35px;
+}
+
+/* Adjust the HBox containing recipient field */
+.recipient-box {
+    -fx-spacing: 5;
+    -fx-pref-width: 250px;
+}
+
+/* Refresh button sizing */
+.refresh-button {
+    -fx-pref-height: 35px;
+    -fx-pref-width: 35px;
+}
+
 .chat-title {
     -fx-font-size: 18px;
     -fx-font-weight: bold;
-    -fx-text-fill: #333;
+    -fx-text-fill: #5a4a3a;
 }
 
-.chat-list {
-    -fx-background-color: #f9f9f9;
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
-    -fx-pref-height: 300;
-}
-
-.chat-input {
-    -fx-background-color: #f9f9f9;
+.chat-list, .chat-input {
+    -fx-background-color: #f5f5f5;
     -fx-background-radius: 5;
     -fx-border-radius: 5;
     -fx-padding: 8;
+}
+
+.chat-list {
+    -fx-pref-height: 300;
 }
 
 .send-button {
     -fx-background-color: #dc5c2d;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 20;
+    -fx-background-radius: 5;
     -fx-padding: 8 16;
-    -fx-cursor: hand;
 }
 
 .send-button:hover {
@@ -210,43 +235,21 @@
 
 /* ComboBox styling */
 .combo-box {
-    -fx-background-color: #f9f9f9;
+    -fx-background-color: #f5f5f5;
     -fx-background-radius: 5;
-    -fx-border-radius: 5;
     -fx-padding: 8;
-}
-
-.combo-box .list-cell {
-    -fx-background-color: #f9f9f9;
-    -fx-padding: 5;
-}
-
-.combo-box .list-view {
-    -fx-background-color: #f9f9f9;
-    -fx-background-radius: 5;
-    -fx-border-radius: 5;
 }
 
 .combo-box .arrow {
     -fx-background-color: #dc5c2d;
 }
 
-.combo-box .arrow-button {
-    -fx-background-color: transparent;
-}
-
 .refresh-button {
     -fx-background-color: transparent;
     -fx-text-fill: #dc5c2d;
-    -fx-font-size: 14px;
-    -fx-padding: 5;
-    -fx-background-radius: 15;
-    -fx-min-width: 25;
-    -fx-min-height: 25;
+    -fx-font-size: 25px;
 }
 
 .refresh-button:hover {
-    -fx-background-color: #f0f0f0;
-    -fx-cursor: hand;
+    -fx-text-fill: #e56e3e;
 }
-

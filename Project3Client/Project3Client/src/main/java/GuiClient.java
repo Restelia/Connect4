@@ -620,9 +620,12 @@ public class GuiClient extends Application {
 	}
 
 	public void createGameGui() {
-		// Load the CSS file
-		Scene scene = createBaseScene(new HBox());
-		scene.getStylesheets().add(getClass().getResource("style.css").toExternalForm());
+		// Load background image
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(width);
+		backgroundView.setFitHeight(height);
+		backgroundView.setPreserveRatio(false);
 
 		// Create main containers
 		HBox root = new HBox(20);
@@ -695,8 +698,6 @@ public class GuiClient extends Application {
 				clientConnection.send(new Message(MessageType.GET_CHAT_RECIPIENTS, "", null))
 		);
 
-		HBox recipientBox = new HBox(5, recipientComboBox, refreshBtn);
-
 		b1 = new Button("SEND");
 		b1.getStyleClass().add("send-button");
 		b1.setOnAction(e -> {
@@ -710,12 +711,24 @@ public class GuiClient extends Application {
 			recipientComboBox.setValue(null); // Reset selection
 		});
 
+		HBox recipientBox = new HBox(5, recipientComboBox, refreshBtn);
+		recipientBox.getStyleClass().add("recipient-box");
+		recipientBox.setAlignment(Pos.CENTER_LEFT);
+
+		// Create container for all chat input elements
+		VBox chatInputGroup = new VBox(10, recipientBox, c1, b1);
+		chatInputGroup.setAlignment(Pos.CENTER_LEFT);
+
 		// Add elements to containers
 		gameBox.getChildren().addAll(gameTitle, turnLabel, timerLabel, gameBoard);
-		chatBox.getChildren().addAll(chatTitle, listItems2, recipientComboBox, c1, b1);
+		chatBox.getChildren().addAll(chatTitle, listItems2, chatInputGroup);
 		root.getChildren().addAll(gameBox, chatBox);
 
-		sceneMap.put("game", createBaseScene(root));
+		// Create layered layout with background
+		StackPane layeredPane = new StackPane();
+		layeredPane.getChildren().addAll(backgroundView, root);
+
+		sceneMap.put("game", createBaseScene(layeredPane));
 	}
 
 	public void updateBoard(String boardString) {
