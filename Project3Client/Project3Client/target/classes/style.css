@@ -221,6 +221,122 @@
     -fx-pref-height: 300;
 }
 
+#section-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: white;
+    -fx-font-weight: 700;
+}
+
+#game-list {
+    -fx-background-color: rgba(255, 255, 255, 0.3); /* translucent white */
+    -fx-background-insets: 0;
+    -fx-control-inner-background: transparent;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: rgba(0, 0, 0, 0.2);
+    -fx-border-width: 1px;
+    -fx-text-fill: black;
+    -fx-padding: 5;
+}
+
+#game-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: black;
+    -fx-font-size: 18px;       /* increase text size */
+    -fx-padding: 16px 12px;    /* more spacing inside each cell */
+    -fx-min-height: 50px;      /* taller cells */
+    -fx-alignment: CENTER_LEFT;
+}
+
+#game-list .list-cell:selected {
+    -fx-background-color: rgba(220, 92, 45, 0.7);
+    -fx-text-fill: white;
+}
+
+#game-list .list-cell:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.2);
+}
+
+#game-list .list-cell:selected:hover {
+    -fx-background-color: rgba(240, 110, 60, 0.85);
+}
+
+#leaderboard-table {
+    -fx-background-color: rgba(255, 255, 255, 0.3);
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: rgba(0, 0, 0, 0.2);
+    -fx-border-width: 1px;
+    -fx-padding: 5;
+}
+
+#leaderboard-table .column-header {
+    -fx-background-color: rgba(220, 92, 45, 0.7);
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+#leaderboard-table .table-row-cell {
+    -fx-background-color: rgba(255, 255, 255, 0.3); /* safe default */
+}
+
+#game-timer-slider {
+    -fx-pref-width: 300px;
+    -fx-padding: 10px;
+}
+
+#game-timer-slider .track {
+    -fx-background-color: rgba(0, 0, 0, 0.4); /* muted orange */
+    -fx-background-radius: 5px;
+    -fx-pref-height: 6px;
+}
+
+#game-timer-slider .thumb {
+    -fx-background-color: #dc5c2d; /* main button color */
+    -fx-background-insets: 0;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.4), 4, 0.5, 0, 1);
+}
+
+#game-timer-slider .tick-mark {
+    -fx-stroke: white;
+    -fx-stroke-width: 1;
+}
+
+#game-timer-slider .axis {
+    -fx-tick-label-fill: white;
+    -fx-font-size: 12px;
+}
+
+#radio-human, #radio-easy, #radio-hard {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 4 10;
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+    -fx-background-radius: 10;
+    -fx-border-color: #dc5c2d;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8;
+    -fx-cursor: hand;
+}
+
+#radio-human:selected,
+#radio-easy:selected,
+#radio-hard:selected {
+    -fx-background-color: #dc5c2d;
+    -fx-text-fill: white;
+}
+
+#radio-human:hover,
+#radio-easy:hover,
+#radio-hard:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.25);
+    -fx-scale-x: 1.03;
+    -fx-scale-y: 1.03;
+}
+
 .send-button {
     -fx-background-color: #dc5c2d;
     -fx-text-fill: white;
