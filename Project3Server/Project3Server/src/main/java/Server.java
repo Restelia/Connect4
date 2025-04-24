@@ -817,7 +817,13 @@ public class Server{
 										}
 									}
 									break;
-
+								case LOG_OUT:
+									synchronized (Server.loggedInUsers){
+										Server.loggedInUsers.remove(this.clientUsername);
+										callback.accept(new Message(MessageType.TEXT, "Logging out: " + this.clientUsername, null));
+										out.writeObject(new Message(MessageType.LOG_OUT, null, null));
+									}
+									break;
 								case VIEW_FRIENDS:
 									String username = message.getMessage(); // requesting user
 									String friends = getFriendsList(username); // "jane,john,tom"

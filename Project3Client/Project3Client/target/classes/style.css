@@ -20,7 +20,29 @@
     -fx-transition: all 0.3s ease-in-out;
 }
 
+
 #welcome-button:hover {
+    -fx-background-color: rgba(255, 122, 66, 1.0); /* Brighter on hover */
+    -fx-scale-x: 1.01;
+    -fx-scale-y: 1.01;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0.3, 0, 2);
+}
+
+#back-button {
+    -fx-background-color: #dc5c2d; /* Warm earthy orange */
+    -fx-text-fill: white;
+    -fx-font-size: 25px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 25;
+    -fx-padding: 0;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 5, 0.2, 0, 1);
+    -fx-pref-width: 45px; /* Set fixed width for consistent button size */
+    -fx-pref-height: 45px;
+    -fx-transition: all 0.3s ease-in-out;
+}
+
+#back-button:hover {
     -fx-background-color: rgba(255, 122, 66, 1.0); /* Brighter on hover */
     -fx-scale-x: 1.01;
     -fx-scale-y: 1.01;
@@ -55,3 +77,29 @@
     -fx-background-radius: 5;
     -fx-padding: 10;
 }
+
+#text-field {
+    -fx-background-color: rgba(100, 100, 100, 0.65);
+    -fx-text-fill: black;
+    -fx-font-size: 16px;
+    -fx-padding: 8 12;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+    -fx-border-color: #dc5c2d;
+    -fx-border-width: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 2, 0.1, 0, 1);
+    -fx-opacity: 1;
+}
+
+#text-field > .prompt-text {
+    -fx-fill: white;
+    -fx-opacity: 1;
+}
+
+#text-field:focused {
+    -fx-border-color: #dc5c2d;
+    -fx-border-width: 2px;
+    -fx-background-color: #fffefc;
+    -fx-effect: dropshadow(gaussian, rgba(220,92,45,0.2), 5, 0.3, 0, 2);
+}
+

@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public class GuiClient extends Application {
 
 	TextField c1, recipientField, username, password;
-	Button b1, createGameBtn, joinGameBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn, friendsListBtn;
+	Button b1, createGameBtn, joinGameBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn, friendsListBtn, logOutBtn;
 	HashMap<String, Scene> sceneMap;
 	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs, notificationArea;
 	Client clientConnection;
@@ -132,6 +132,10 @@ public class GuiClient extends Application {
 						break;
 					case ONLINE_USERS:
 						showOnlineUsers(msg.getMessage().split(","));
+						break;
+					case LOG_OUT:
+						createWelcomeScreen();
+						mainStage.setScene(sceneMap.get("welcome"));
 						break;
 					case FRIEND_REQUEST_NOTIFICATION:
 						String requesterName = msg.getMessage();
@@ -265,18 +269,36 @@ public class GuiClient extends Application {
 	}
 
 	public void signUpScreen(){
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(700);  // or use scene width binding
+		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setPreserveRatio(false);
+
+		// Apply blur effect
+		GaussianBlur blur = new GaussianBlur(20);
+		backgroundView.setEffect(blur);
+
 		username = new TextField();
 		username.setPromptText("Input username here");
+		username.setId("text-field");
+
+		password = new TextField();
+		password.setPromptText("Input password here");
+		password.setId("text-field");
+
+		Button signUpBtn2 = new Button ("Sign up");
+		Button backBtn = new Button("⬅");
 
 		Label status = new Label("USERNAME ALREADY TAKEN");
 		status.setVisible(false);
 		status.setTextFill(Color.RED);
 
-		password = new TextField();
-		password.setPromptText("Input password here");
+		Label signUpLabel = new Label("Create Account");
+		signUpLabel.setId("welcome-title");
 
-		Button signUpBtn2 = new Button ("Sign up");
-		Button backBtn = new Button("Back to Main Screen");
+		signUpBtn2.setId("welcome-button");
+		backBtn.setId("back-button");
 
 		signUpBtn2.setOnAction(e -> {
 			String combined = username.getText() + "," + password.getText();
@@ -293,17 +315,30 @@ public class GuiClient extends Application {
 			mainStage.setScene(sceneMap.get("welcome"));
 		});
 
+		HBox topRightBox = new HBox(backBtn);
+		topRightBox.setAlignment(Pos.TOP_LEFT);
+		topRightBox.setPadding(new Insets(10));
+
 		userInputs = new VBox(15, username, password);
-		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn, status);
+
+		signUpBox = new VBox(15, signUpLabel, userInputs, signUpBtn2, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
-		sceneMap.put("signup", createBaseScene(signUpBox));
 
+		BorderPane root = new BorderPane();
+		root.setTop(topRightBox);       // back button in top-right
+		root.setCenter(signUpBox);      // center content
+
+		StackPane layered = new StackPane(backgroundView, root);
+
+		Scene scene = createBaseScene(layered);
+		sceneMap.put("signup", scene);
 	}
 
 	public void logInScreen(){
 		username = new TextField();
 		username.setPromptText("Input username here");
+		username.setId("text-field");
 
 		status = new Label();
 		status.setVisible(false);
@@ -311,6 +346,7 @@ public class GuiClient extends Application {
 
 		password = new TextField();
 		password.setPromptText("Input password here");
+		password.setId("text-field");
 
 		Button logInBtn2 = new Button ("Log in");
 		Button backBtn = new Button("Back to Main Screen");
@@ -372,6 +408,7 @@ public class GuiClient extends Application {
 		leaderBoardBtn = new Button("Leaderboard");
 		usersOnlineBtn = new Button("Users Online");
 		friendsListBtn = new Button("Friends List");
+		logOutBtn = new Button("Log Out");
 		usernameLabel = new Label();
 
 		createGameBtn.setOnAction(e -> {
@@ -395,12 +432,16 @@ public class GuiClient extends Application {
 			clientConnection.send(new Message(MessageType.VIEW_FRIENDS, currentUsername, null));
 		});
 
+		logOutBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.LOG_OUT, null, null));
+		});
+
 		Button testNotificationBtn = new Button("Test Notification");
 		testNotificationBtn.setOnAction(e ->
 				notificationManager.showNotification("This is a test notification!")
 		);
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, friendsListBtn, usernameLabel, testNotificationBtn);
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, friendsListBtn, usernameLabel, testNotificationBtn, logOutBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 
