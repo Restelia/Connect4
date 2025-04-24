@@ -10,6 +10,18 @@ public class Connect4Game {
     private Runnable onTurnTimeout;
     private boolean gameFinished = false;
     private int consecutiveTimeouts = 0;
+    private static final int ROWS = 6;
+    private static final int COLS = 7;
+    private int[][] board = new int[ROWS][COLS];  // 0 = empty, 1 = player 1, 2 = player 2
+    private int winner = 0;
+
+    public Connect4Game() {
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                board[row][col] = 0;  // Initialize the board as empty
+            }
+        }
+    }
 
     public void setTurnDuration(int seconds) {
         this.turnDurationSeconds = seconds;
@@ -65,28 +77,15 @@ public class Connect4Game {
         }
     }
 
-
     public void setPlayers(int p1, int p2) {
         this.player1 = p1;
         this.player2 = p2;
         this.currentPlayer = p1; // player1 starts
     }
 
-    private static final int ROWS = 6;
-    private static final int COLS = 7;
-    private int[][] board = new int[ROWS][COLS];  // 0 = empty, 1 = player 1, 2 = player 2
-
-    public Connect4Game() {
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                board[row][col] = 0;  // Initialize the board as empty
-            }
-        }
-    }
-
     public boolean makeMove(int col, int playerId) {
-        if (col < 0 || col >= 7) return false;
-        for (int row = 5; row >= 0; row--) {
+        if (col < 0 || col >= COLS) return false;
+        for (int row = ROWS - 1; row >= 0; row--) {
             if (board[row][col] == 0) {
                 board[row][col] = (playerId == player1) ? 1 : 2;
                 return true;
@@ -100,6 +99,7 @@ public class Connect4Game {
         for (int row = 0; row < ROWS; row++) {
             for (int col = 0; col < COLS; col++) {
                 if (board[row][col] != 0 && checkDirection(row, col)) {
+                    this.winner = board[row][col];
                     return true;
                 }
             }
@@ -107,12 +107,14 @@ public class Connect4Game {
         return false;
     }
 
+    public int getWinner() {
+        return this.winner;
+    }
+
     public boolean checkDraw() {
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                if (board[row][col] == 0) {
-                    return false;
-                }
+        for (int col = 0; col < COLS; col++) {
+            if (board[0][col] == 0) {
+                return false;
             }
         }
         return true;
@@ -122,39 +124,39 @@ public class Connect4Game {
         int player = board[row][col];
 
         // Check horizontal
-        for (int i = 0; i < 4; i++) {
-            if (col + i < COLS && board[row][col + i] == player) {
-                if (i == 3) return true;
-            } else {
-                break;
-            }
+        if (col + 3 < COLS &&
+                board[row][col] == player &&
+                board[row][col+1] == player &&
+                board[row][col+2] == player &&
+                board[row][col+3] == player) {
+            return true;
         }
 
         // Check vertical
-        for (int i = 0; i < 4; i++) {
-            if (row + i < ROWS && board[row + i][col] == player) {
-                if (i == 3) return true;
-            } else {
-                break;
-            }
+        if (row + 3 < ROWS &&
+                board[row][col] == player &&
+                board[row+1][col] == player &&
+                board[row+2][col] == player &&
+                board[row+3][col] == player) {
+            return true;
         }
 
         // Check diagonal \
-        for (int i = 0; i < 4; i++) {
-            if (row + i < ROWS && col + i < COLS && board[row + i][col + i] == player) {
-                if (i == 3) return true;
-            } else {
-                break;
-            }
+        if (row + 3 < ROWS && col + 3 < COLS &&
+                board[row][col] == player &&
+                board[row+1][col+1] == player &&
+                board[row+2][col+2] == player &&
+                board[row+3][col+3] == player) {
+            return true;
         }
 
         // Check diagonal /
-        for (int i = 0; i < 4; i++) {
-            if (row - i >= 0 && col + i < COLS && board[row - i][col + i] == player) {
-                if (i == 3) return true;
-            } else {
-                break;
-            }
+        if (row - 3 >= 0 && col + 3 < COLS &&
+                board[row][col] == player &&
+                board[row-1][col+1] == player &&
+                board[row-2][col+2] == player &&
+                board[row-3][col+3] == player) {
+            return true;
         }
 
         return false;
@@ -191,5 +193,37 @@ public class Connect4Game {
 
     public boolean isGameFinished() {
         return gameFinished;
+    }
+
+    public int getPlayer1() {
+        return player1;
+    }
+
+    public int getPlayer2() {
+        return player2;
+    }
+
+    public Connect4Game copy() {
+        Connect4Game copy = new Connect4Game();
+        copy.board = new int[ROWS][COLS];
+        for (int i = 0; i < ROWS; i++) {
+            System.arraycopy(this.board[i], 0, copy.board[i], 0, COLS);
+        }
+        copy.currentPlayer = this.currentPlayer;
+        copy.player1 = this.player1;
+        copy.player2 = this.player2;
+        copy.gameFinished = this.gameFinished;
+        copy.turnDurationSeconds = this.turnDurationSeconds;
+        copy.winner = this.winner;
+        return copy;
+    }
+
+    public boolean isValidMove(int column) {
+        if (column < 0 || column >= COLS) return false;
+        return board[0][column] == 0; // If top row is empty, column isn't full
+    }
+
+    public int[][] getBoard() {
+        return board;
     }
 }

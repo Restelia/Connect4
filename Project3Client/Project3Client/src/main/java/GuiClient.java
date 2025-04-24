@@ -28,15 +28,14 @@ import java.util.stream.Collectors;
 public class GuiClient extends Application {
 
 	TextField c1, recipientField, username, password;
-	Button b1, createGameBtn, joinGameBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn, friendsListBtn;
+	Button b1, createGameBtn, joinGameBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn, friendsListBtn, logOutBtn;
 	HashMap<String, Scene> sceneMap;
 	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs, notificationArea;
 	Client clientConnection;
 	ListView<String> listItems2, gameListView;
 	Stage mainStage;
 	GridPane gameBoard;
-	StackPane rootPane;
-	Pane contentHolder;
+	StackPane rootPane;;
 	String currentPlayerId = "", currentUsername, localUsername;
 	boolean isMyTurn;
 	Label turnLabel, timerLabel, status, usernameLabel, welcomeLabel;
@@ -133,6 +132,10 @@ public class GuiClient extends Application {
 						break;
 					case ONLINE_USERS:
 						showOnlineUsers(msg.getMessage().split(","));
+						break;
+					case LOG_OUT:
+						createWelcomeScreen();
+						mainStage.setScene(sceneMap.get("welcome"));
 						break;
 					case FRIEND_REQUEST_NOTIFICATION:
 						String requesterName = msg.getMessage();
@@ -266,18 +269,36 @@ public class GuiClient extends Application {
 	}
 
 	public void signUpScreen(){
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(700);  // or use scene width binding
+		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setPreserveRatio(false);
+
+		// Apply blur effect
+		GaussianBlur blur = new GaussianBlur(20);
+		backgroundView.setEffect(blur);
+
 		username = new TextField();
 		username.setPromptText("Input username here");
+		username.setId("text-field");
+
+		password = new TextField();
+		password.setPromptText("Input password here");
+		password.setId("text-field");
+
+		Button signUpBtn2 = new Button ("Sign up");
+		Button backBtn = new Button("⬅");
 
 		Label status = new Label("USERNAME ALREADY TAKEN");
 		status.setVisible(false);
 		status.setTextFill(Color.RED);
 
-		password = new TextField();
-		password.setPromptText("Input password here");
+		Label signUpLabel = new Label("Create Account");
+		signUpLabel.setId("welcome-title");
 
-		Button signUpBtn2 = new Button ("Sign up");
-		Button backBtn = new Button("Back to Main Screen");
+		signUpBtn2.setId("welcome-button");
+		backBtn.setId("back-button");
 
 		signUpBtn2.setOnAction(e -> {
 			String combined = username.getText() + "," + password.getText();
@@ -294,17 +315,30 @@ public class GuiClient extends Application {
 			mainStage.setScene(sceneMap.get("welcome"));
 		});
 
+		HBox topRightBox = new HBox(backBtn);
+		topRightBox.setAlignment(Pos.TOP_LEFT);
+		topRightBox.setPadding(new Insets(10));
+
 		userInputs = new VBox(15, username, password);
-		signUpBox = new VBox(15, userInputs, signUpBtn2, backBtn, status);
+
+		signUpBox = new VBox(15, signUpLabel, userInputs, signUpBtn2, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
-		sceneMap.put("signup", createBaseScene(signUpBox));
 
+		BorderPane root = new BorderPane();
+		root.setTop(topRightBox);       // back button in top-right
+		root.setCenter(signUpBox);      // center content
+
+		StackPane layered = new StackPane(backgroundView, root);
+
+		Scene scene = createBaseScene(layered);
+		sceneMap.put("signup", scene);
 	}
 
 	public void logInScreen(){
 		username = new TextField();
 		username.setPromptText("Input username here");
+		username.setId("text-field");
 
 		status = new Label();
 		status.setVisible(false);
@@ -312,6 +346,7 @@ public class GuiClient extends Application {
 
 		password = new TextField();
 		password.setPromptText("Input password here");
+		password.setId("text-field");
 
 		Button logInBtn2 = new Button ("Log in");
 		Button backBtn = new Button("Back to Main Screen");
@@ -373,6 +408,7 @@ public class GuiClient extends Application {
 		leaderBoardBtn = new Button("Leaderboard");
 		usersOnlineBtn = new Button("Users Online");
 		friendsListBtn = new Button("Friends List");
+		logOutBtn = new Button("Log Out");
 		usernameLabel = new Label();
 
 		createGameBtn.setOnAction(e -> {
@@ -396,12 +432,16 @@ public class GuiClient extends Application {
 			clientConnection.send(new Message(MessageType.VIEW_FRIENDS, currentUsername, null));
 		});
 
+		logOutBtn.setOnAction(e -> {
+			clientConnection.send(new Message(MessageType.LOG_OUT, null, null));
+		});
+
 		Button testNotificationBtn = new Button("Test Notification");
 		testNotificationBtn.setOnAction(e ->
 				notificationManager.showNotification("This is a test notification!")
 		);
 
-		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, friendsListBtn, usernameLabel, testNotificationBtn);
+		lobbyBox = new VBox(15, createGameBtn, joinGameBtn,leaderBoardBtn, usersOnlineBtn, friendsListBtn, usernameLabel, testNotificationBtn, logOutBtn);
 		lobbyBox.setAlignment(Pos.CENTER);
 		lobbyBox.setPadding(new Insets(20));
 
@@ -438,30 +478,41 @@ public class GuiClient extends Application {
 			returnToLobby();
 		});
 
-		Slider slider = new Slider(5, 50, 25); // Min 5, Max 50, default 25
-		slider.setShowTickLabels(true);
-		slider.setShowTickMarks(true);
-		slider.setMajorTickUnit(5);
-		slider.setMinorTickCount(4);
-		slider.setBlockIncrement(1);
+		Slider timerSlider = new Slider(5, 50, 25); // Min 5, Max 50, default 25
+		timerSlider.setShowTickLabels(true);
+		timerSlider.setShowTickMarks(true);
+		timerSlider.setMajorTickUnit(5);
+		timerSlider.setMinorTickCount(4);
+		timerSlider.setBlockIncrement(1);
 
 		Label timeLabel = new Label("Selected time: 25 seconds");
 
 		// Update the label whenever the slider is moved
-		slider.valueProperty().addListener((obs, oldVal, newVal) -> {
+		timerSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
 			int roundedVal = (int) Math.round(newVal.doubleValue());
 			timeLabel.setText("Selected time: " + roundedVal + " seconds");
 		});
 
-		VBox timeBox = new VBox(10, new Label("Pick time per turn:"), slider, timeLabel);
+		VBox timeBox = new VBox(10, new Label("Pick time per turn:"), timerSlider, timeLabel);
 		timeBox.setAlignment(Pos.CENTER);
 
-		// Optional AI section — not functional yet
-		HBox aiBox = new HBox(10, new Button("Yes"), new Button("No")); // Placeholder
-		VBox aiSection = new VBox(10, new Label("Enable AI?"), aiBox);
-		aiSection.setAlignment(Pos.CENTER);
 
-		VBox layout = new VBox(20, timeBox, aiSection, createGameBtn, backBtn);
+		// Optional AI section — not functional yet
+		ToggleGroup aiToggleGroup = new ToggleGroup();
+		RadioButton noAIRadio = new RadioButton("Human Opponent");
+		RadioButton easyAIRadio = new RadioButton("Easy AI");
+		RadioButton hardAIRadio = new RadioButton("Hard AI");
+
+		noAIRadio.setToggleGroup(aiToggleGroup);
+		easyAIRadio.setToggleGroup(aiToggleGroup);
+		hardAIRadio.setToggleGroup(aiToggleGroup);
+		noAIRadio.setSelected(true); // Default to human opponent
+
+		VBox aiSelectionBox = new VBox(10, new Label("Select Opponent:"), noAIRadio, easyAIRadio, hardAIRadio);
+		aiSelectionBox.setAlignment(Pos.CENTER_LEFT);
+		aiSelectionBox.setPadding(new Insets(0, 0, 0, 20));
+
+		VBox layout = new VBox(20, timeBox, aiSelectionBox, createGameBtn, backBtn);
 		layout.setAlignment(Pos.CENTER);
 		layout.setPadding(new Insets(20));
 
@@ -469,9 +520,26 @@ public class GuiClient extends Application {
 		mainStage.setScene(sceneMap.get("settings"));
 
 		createGameBtn.setOnAction(e -> {
-			int selectedTime = (int) Math.round(slider.getValue());
+			int selectedTime = (int) Math.round(timerSlider.getValue());
 			// ✅ Send selected time in seconds as message to server
-			clientConnection.send(new Message(MessageType.CREATE_GAME, Integer.toString(selectedTime), null));
+			String messageContent;
+
+			// Determine which opponent was selected
+			if (easyAIRadio.isSelected()) {
+				messageContent = "1," + selectedTime; // 1 = Easy AI
+			} else if (hardAIRadio.isSelected()) {
+				messageContent = "2," + selectedTime; // 2 = Hard AI
+			} else {
+				messageContent = "0," + selectedTime; // 0 = Human opponent
+			}
+
+			// Send appropriate message type
+			if (noAIRadio.isSelected()) {
+				clientConnection.send(new Message(MessageType.CREATE_GAME, messageContent, null));
+			} else {
+				clientConnection.send(new Message(MessageType.CREATE_BOT_GAME, messageContent, null));
+			}
+
 			showWaitingScreen();
 		});
 	}
