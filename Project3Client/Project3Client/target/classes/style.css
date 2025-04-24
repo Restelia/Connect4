@@ -103,3 +103,150 @@
     -fx-effect: dropshadow(gaussian, rgba(220,92,45,0.2), 5, 0.3, 0, 2);
 }
 
+/* GAME SCENE */
+/* Main container styles */
+.root {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 20;
+}
+
+/* Game area styles */
+.game-container {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);
+    -fx-padding: 20;
+    -fx-spacing: 15;
+}
+
+.game-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.turn-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #dc5c2d;
+}
+
+.timer-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.game-board {
+    -fx-background-color: white;
+    -fx-background-radius: 8;
+    -fx-padding: 15;
+}
+
+/* Game cell styles */
+.game-cell {
+    -fx-background-color: #e0e0e0;
+    -fx-background-radius: 30;
+    -fx-border-radius: 30;
+    -fx-pref-width: 60;
+    -fx-pref-height: 60;
+    -fx-min-width: 60;
+    -fx-min-height: 60;
+    -fx-max-width: 60;
+    -fx-max-height: 60;
+}
+
+.game-cell-player1 {
+    -fx-background-color: #dc5c2d;
+    -fx-background-radius: 30;
+}
+
+.game-cell-player2 {
+    -fx-background-color: #f9d56e;
+    -fx-background-radius: 30;
+}
+
+/* Chat area styles */
+.chat-container {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);
+    -fx-padding: 20;
+    -fx-spacing: 15;
+}
+
+.chat-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.chat-list {
+    -fx-background-color: #f9f9f9;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-pref-height: 300;
+}
+
+.chat-input {
+    -fx-background-color: #f9f9f9;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-padding: 8;
+}
+
+.send-button {
+    -fx-background-color: #dc5c2d;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 20;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+}
+
+.send-button:hover {
+    -fx-background-color: #e56e3e;
+}
+
+/* ComboBox styling */
+.combo-box {
+    -fx-background-color: #f9f9f9;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+    -fx-padding: 8;
+}
+
+.combo-box .list-cell {
+    -fx-background-color: #f9f9f9;
+    -fx-padding: 5;
+}
+
+.combo-box .list-view {
+    -fx-background-color: #f9f9f9;
+    -fx-background-radius: 5;
+    -fx-border-radius: 5;
+}
+
+.combo-box .arrow {
+    -fx-background-color: #dc5c2d;
+}
+
+.combo-box .arrow-button {
+    -fx-background-color: transparent;
+}
+
+.refresh-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #dc5c2d;
+    -fx-font-size: 14px;
+    -fx-padding: 5;
+    -fx-background-radius: 15;
+    -fx-min-width: 25;
+    -fx-min-height: 25;
+}
+
+.refresh-button:hover {
+    -fx-background-color: #f0f0f0;
+    -fx-cursor: hand;
+}
+

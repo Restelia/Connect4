@@ -406,9 +406,9 @@ public class Server{
 							Message message = (Message) in.readObject();
 							switch (message.getType()) {
 								case TEXT:
-									callback.accept(new Message(MessageType.TEXT, "client #" + count + " sent: " + message.getMessage(), null));
+									callback.accept(new Message(MessageType.TEXT, clientUsername + " sent: " + message.getMessage(), null));
 									if (message.getRecipient() == null) {
-										updateClients(new Message(MessageType.TEXT, "client #" + count + " said: " + message.getMessage(), null));
+										updateClients(new Message(MessageType.TEXT, clientUsername + " said: " + message.getMessage(), null));
 									} else {
 										sendToRecipient(message.getRecipient(), new Message(MessageType.TEXT, "[Private] client #" + count + ": " + message.getMessage(), null));
 									}
@@ -889,6 +889,11 @@ public class Server{
 								case VIEW_ONLINE_USERS:
 									String loggedInUsersList = String.join(",", Server.loggedInUsers);
 									out.writeObject(new Message(MessageType.ONLINE_USERS, loggedInUsersList, null));
+									break;
+
+								case GET_CHAT_RECIPIENTS:
+									String recipientList = String.join(",", Server.loggedInUsers);
+									out.writeObject(new Message(MessageType.CHAT_RECIPIENTS, recipientList, null));
 									break;
 
 								case FRIEND_REQUEST_RESPONSE:

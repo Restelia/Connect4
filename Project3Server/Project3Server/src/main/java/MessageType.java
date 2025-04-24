@@ -36,5 +36,7 @@ public enum MessageType {
     VIEW_FRIENDS,
     FRIENDS_LIST,
     LOG_OUT,
-    CREATE_BOT_GAME
+    CREATE_BOT_GAME,
+    GET_CHAT_RECIPIENTS,
+    CHAT_RECIPIENTS
 }

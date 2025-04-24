@@ -3,6 +3,7 @@ import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
@@ -30,16 +31,18 @@ public class GuiClient extends Application {
 	TextField c1, recipientField, username, password;
 	Button b1, createGameBtn, joinGameBtn, logInBtn, signUpBtn, leaderBoardBtn, usersOnlineBtn, friendsListBtn, logOutBtn;
 	HashMap<String, Scene> sceneMap;
-	VBox clientBox, lobbyBox, signUpBox, accountBox, userInputs, notificationArea;
+	VBox lobbyBox, signUpBox, accountBox, userInputs, notificationArea;
 	Client clientConnection;
 	ListView<String> listItems2, gameListView;
 	Stage mainStage;
 	GridPane gameBoard;
 	StackPane rootPane;;
 	String currentPlayerId = "", currentUsername, localUsername;
+	ComboBox<String> recipientComboBox;
+	ListView<String> userListView;
 	boolean isMyTurn;
 	Label turnLabel, timerLabel, status, usernameLabel, welcomeLabel;
-	int turnSeconds, width=700, height=500;
+	int turnSeconds, width=900, height=700;
 	Timer currentTimer;
 	NotificationManager notificationManager;
 
@@ -132,6 +135,9 @@ public class GuiClient extends Application {
 						break;
 					case ONLINE_USERS:
 						showOnlineUsers(msg.getMessage().split(","));
+						break;
+					case CHAT_RECIPIENTS:  // New case
+						updateChatRecipients(msg.getMessage().split(","));
 						break;
 					case LOG_OUT:
 						createWelcomeScreen();
@@ -226,8 +232,8 @@ public class GuiClient extends Application {
 	public void createWelcomeScreen(){
 		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
 		ImageView backgroundView = new ImageView(backgroundImage);
-		backgroundView.setFitWidth(700);  // or use scene width binding
-		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setFitWidth(width);  // or use scene width binding
+		backgroundView.setFitHeight(height); // or use scene height binding
 		backgroundView.setPreserveRatio(false);
 
 		// Apply blur effect
@@ -271,8 +277,8 @@ public class GuiClient extends Application {
 	public void signUpScreen(){
 		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
 		ImageView backgroundView = new ImageView(backgroundImage);
-		backgroundView.setFitWidth(700);  // or use scene width binding
-		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setFitWidth(width);  // or use scene width binding
+		backgroundView.setFitHeight(height); // or use scene height binding
 		backgroundView.setPreserveRatio(false);
 
 		// Apply blur effect
@@ -338,8 +344,8 @@ public class GuiClient extends Application {
 	public void logInScreen(){
 		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
 		ImageView backgroundView = new ImageView(backgroundImage);
-		backgroundView.setFitWidth(700);  // or use scene width binding
-		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setFitWidth(width);  // or use scene width binding
+		backgroundView.setFitHeight(height); // or use scene height binding
 		backgroundView.setPreserveRatio(false);
 
 		GaussianBlur blur = new GaussianBlur(20);
@@ -614,67 +620,102 @@ public class GuiClient extends Application {
 	}
 
 	public void createGameGui() {
-		turnLabel = new Label("Opponent's Turn");
-		turnLabel.setStyle("-fx-font-size: 16px;");
+		// Load the CSS file
+		Scene scene = createBaseScene(new HBox());
+		scene.getStylesheets().add(getClass().getResource("style.css").toExternalForm());
 
-		timerLabel = new Label("Time Left: 0");
-		timerLabel.setStyle("-fx-font-size: 16px;");
+		// Create main containers
+		HBox root = new HBox(20);
+		root.getStyleClass().add("root");
 
+		// Game area
+		VBox gameBox = new VBox(15);
+		gameBox.getStyleClass().add("game-container");
+
+		// Game title and info labels
+		Label gameTitle = new Label("CONNECT 4");
+		gameTitle.getStyleClass().add("game-title");
+
+		turnLabel = new Label("OPPONENT'S TURN");
+		turnLabel.getStyleClass().add("turn-label");
+
+		timerLabel = new Label("TIME LEFT: 0");
+		timerLabel.getStyleClass().add("timer-label");
+
+		// Game board
 		gameBoard = new GridPane();
-		gameBoard.setPadding(new Insets(10));
+		gameBoard.getStyleClass().add("game-board");
 		gameBoard.setHgap(5);
 		gameBoard.setVgap(5);
 
 		for (int row = 0; row < 6; row++) {
 			for (int col = 0; col < 7; col++) {
 				Button cell = new Button();
-				cell.setPrefSize(50, 50);
-				cell.setStyle("-fx-background-color: lightgray;");
+				cell.getStyleClass().add("game-cell");
 				int finalCol = col;
 				cell.setOnAction(e -> {
 					if (isMyTurn) {
 						System.out.println("MOVE: Column " + finalCol);
 						clientConnection.send(new Message(MessageType.MOVE, Integer.toString(finalCol), null));
 						currentTimer.cancel();
-						turnLabel.setText("Opponent's Turn");
-						timerLabel.setText("Time Left: 0");
+						turnLabel.setText("OPPONENT'S TURN");
+						timerLabel.setText("TIME LEFT: 0");
 						isMyTurn = false;
 					}
 				});
-				GridPane.setColumnIndex(cell, col);
-				GridPane.setRowIndex(cell, row);
 				gameBoard.add(cell, col, row);
 			}
 		}
 
+		// Chat area
+		VBox chatBox = new VBox(15);
+		chatBox.getStyleClass().add("chat-container");
+
+		Label chatTitle = new Label("CHAT");
+		chatTitle.getStyleClass().add("chat-title");
+
 		listItems2 = new ListView<>();
+		listItems2.getStyleClass().add("chat-list");
 
 		c1 = new TextField();
 		c1.setPromptText("Enter Message");
-		recipientField = new TextField();
-		recipientField.setPromptText("Enter recipient ");
-		b1 = new Button("Send");
+		c1.getStyleClass().add("chat-input");
 
+		recipientComboBox = new ComboBox<>();
+		recipientComboBox.setPromptText("Select recipient");
+		recipientComboBox.getStyleClass().add("chat-input");
+		recipientComboBox.setEditable(true);
+
+		clientConnection.send(new Message(MessageType.GET_CHAT_RECIPIENTS, "", null));
+
+		// Refresh button
+		Button refreshBtn = new Button("↻");
+		refreshBtn.getStyleClass().add("refresh-button");
+		refreshBtn.setOnAction(e ->
+				clientConnection.send(new Message(MessageType.GET_CHAT_RECIPIENTS, "", null))
+		);
+
+		HBox recipientBox = new HBox(5, recipientComboBox, refreshBtn);
+
+		b1 = new Button("SEND");
+		b1.getStyleClass().add("send-button");
 		b1.setOnAction(e -> {
-			String recipient = recipientField.getText();
-			if (Objects.equals(recipient, "")) {
-				recipient = null;
+			String recipient = recipientComboBox.getValue();
+			if (recipient == null || recipient.isEmpty() || recipient.equals("All")) {
+				recipient = null; // Send to all
 			}
 			Message msg = new Message(MessageType.TEXT, c1.getText(), recipient);
 			clientConnection.send(msg);
 			c1.clear();
-			recipientField.clear();
+			recipientComboBox.setValue(null); // Reset selection
 		});
 
-		clientBox = new VBox(10, c1, recipientField, b1, listItems2);
-		clientBox.setStyle("-fx-background-color: blue;" + "-fx-font-family: 'serif';");
+		// Add elements to containers
+		gameBox.getChildren().addAll(gameTitle, turnLabel, timerLabel, gameBoard);
+		chatBox.getChildren().addAll(chatTitle, listItems2, recipientComboBox, c1, b1);
+		root.getChildren().addAll(gameBox, chatBox);
 
-		VBox gameBox = new VBox(10, turnLabel, timerLabel, new Label("Connect 4 Game"), gameBoard);
-		gameBox.setPadding(new Insets(10));
-
-		HBox gameSceneHBox = new HBox(10, gameBox, clientBox);
-
-		sceneMap.put("game", createBaseScene(gameSceneHBox));
+		sceneMap.put("game", createBaseScene(root));
 	}
 
 	public void updateBoard(String boardString) {
@@ -683,12 +724,11 @@ public class GuiClient extends Application {
 			for (int col = 0; col < 7; col++) {
 				Button cell = (Button) getNodeFromGridPane(gameBoard, col, row);
 				char value = rows[row].charAt(col);
+				cell.getStyleClass().removeAll("game-cell-player1", "game-cell-player2");
 				if (value == '1') {
-					cell.setStyle("-fx-background-color: red;");
+					cell.getStyleClass().add("game-cell-player1");
 				} else if (value == '2') {
-					cell.setStyle("-fx-background-color: yellow;");
-				} else {
-					cell.setStyle("-fx-background-color: lightgray;");
+					cell.getStyleClass().add("game-cell-player2");
 				}
 			}
 		}
@@ -863,6 +903,18 @@ public class GuiClient extends Application {
 
 		Scene onlineUsersScene = createBaseScene(box);
 		mainStage.setScene(onlineUsersScene);
+	}
+
+	public void updateChatRecipients(String[] users) {
+		Platform.runLater(() -> {
+			List<String> filteredUsers = Arrays.stream(users)
+					.filter(username -> !username.equals(currentUsername))
+					.collect(Collectors.toList());
+
+			ObservableList<String> recipients = FXCollections.observableArrayList(filteredUsers);
+			recipients.add(0, "All");
+			recipientComboBox.setItems(recipients);
+		});
 	}
 
 	public void showFriendsList(String[] friends) {
