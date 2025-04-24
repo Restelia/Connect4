@@ -315,9 +315,9 @@ public class GuiClient extends Application {
 			mainStage.setScene(sceneMap.get("welcome"));
 		});
 
-		HBox topRightBox = new HBox(backBtn);
-		topRightBox.setAlignment(Pos.TOP_LEFT);
-		topRightBox.setPadding(new Insets(10));
+		HBox topLeftBox = new HBox(backBtn);
+		topLeftBox.setAlignment(Pos.TOP_LEFT);
+		topLeftBox.setPadding(new Insets(10));
 
 		userInputs = new VBox(15, username, password);
 
@@ -326,7 +326,7 @@ public class GuiClient extends Application {
 		signUpBox.setPadding(new Insets(20));
 
 		BorderPane root = new BorderPane();
-		root.setTop(topRightBox);       // back button in top-right
+		root.setTop(topLeftBox);       // back button in top-right
 		root.setCenter(signUpBox);      // center content
 
 		StackPane layered = new StackPane(backgroundView, root);
@@ -336,6 +336,15 @@ public class GuiClient extends Application {
 	}
 
 	public void logInScreen(){
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(700);  // or use scene width binding
+		backgroundView.setFitHeight(500); // or use scene height binding
+		backgroundView.setPreserveRatio(false);
+
+		GaussianBlur blur = new GaussianBlur(20);
+		backgroundView.setEffect(blur);
+
 		username = new TextField();
 		username.setPromptText("Input username here");
 		username.setId("text-field");
@@ -348,8 +357,14 @@ public class GuiClient extends Application {
 		password.setPromptText("Input password here");
 		password.setId("text-field");
 
+		Label signUpLabel = new Label("Login to your account");
+		signUpLabel.setId("welcome-title");
+
 		Button logInBtn2 = new Button ("Log in");
-		Button backBtn = new Button("Back to Main Screen");
+		logInBtn2.setId("welcome-button");
+
+		Button backBtn = new Button("⬅");
+		backBtn.setId("back-button");
 
 		logInBtn2.setOnAction(e -> {
 			String combined = username.getText() + "," + password.getText();
@@ -365,11 +380,22 @@ public class GuiClient extends Application {
 			mainStage.setScene(sceneMap.get("welcome"));
 		});
 
+		HBox topLeftBox = new HBox(backBtn);
+		topLeftBox.setAlignment(Pos.TOP_LEFT);
+		topLeftBox.setPadding(new Insets(10));
+
 		userInputs = new VBox(15, username, password);
-		signUpBox = new VBox(15, userInputs, logInBtn2, backBtn, status);
+		signUpBox = new VBox(15, signUpLabel, userInputs, logInBtn2, status);
 		signUpBox.setAlignment(Pos.CENTER);
 		signUpBox.setPadding(new Insets(20));
-		sceneMap.put("login", createBaseScene(signUpBox));
+
+		BorderPane root = new BorderPane();
+		root.setTop(topLeftBox);        // back button on top left
+		root.setCenter(signUpBox);      // form centered
+
+		StackPane layered = new StackPane(backgroundView, root); // background + UI layered
+		Scene scene = createBaseScene(layered);
+		sceneMap.put("login", scene);
 	}
 
 	public Scene createBaseScene(Pane content) {
@@ -404,6 +430,7 @@ public class GuiClient extends Application {
 
 	public void createLobbyGui() {
 		createGameBtn = new Button("Create Game");
+		createGameBtn.setId("welcome-button");
 		joinGameBtn = new Button("Join Game");
 		leaderBoardBtn = new Button("Leaderboard");
 		usersOnlineBtn = new Button("Users Online");
