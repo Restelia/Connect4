@@ -517,7 +517,7 @@ public class GuiClient extends Application {
 			// Drop animation
 			TranslateTransition fall = new TranslateTransition(Duration.seconds(3 + Math.random() * 2), coin);
 			fall.setFromY(0);
-			fall.setToY(600); // falls out of view
+			fall.setToY(700); // falls out of view
 			fall.setOnFinished(ev -> animationLayer.getChildren().remove(coin));
 
 			animationLayer.getChildren().add(coin);
@@ -671,18 +671,42 @@ public class GuiClient extends Application {
 	}
 
 	public void showWaitingScreen() {
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(width);  // or use scene width binding
+		backgroundView.setFitHeight(height); // or use scene height binding
+		backgroundView.setPreserveRatio(false);
+
+		GaussianBlur blur = new GaussianBlur(20);
+		backgroundView.setEffect(blur);
+
 		VBox box = new VBox(10);
 		Label label = new Label("Waiting for opponent...");
-		Button backBtn = new Button("Back to Lobby");
+		label.setId("welcome-title");
+		Button backBtn = new Button("⬅");
+		backBtn.setId("back-button");
 
 		backBtn.setOnAction(e -> {
 			clientConnection.send(new Message(MessageType.CANCEL_GAME_CREATION, "", null));
 			returnToLobby();
 		});
 
-		box.getChildren().addAll(label, backBtn);
+		HBox topLeftBox = new HBox(backBtn);
+		topLeftBox.setAlignment(Pos.TOP_LEFT);
+		topLeftBox.setPadding(new Insets(10));
+
+		box.getChildren().addAll(label);
 		box.setAlignment(Pos.CENTER);
-		sceneMap.put("waiting", createBaseScene(box));
+
+		BorderPane root = new BorderPane();
+
+		root.setTop(topLeftBox);        // back button on top left
+		root.setCenter(box);      // form centered
+
+		StackPane layered = new StackPane(backgroundView, root); // background + UI layered
+		Scene scene = createBaseScene(layered);
+
+		sceneMap.put("waiting", scene);
 		mainStage.setScene(sceneMap.get("waiting"));
 	}
 
@@ -922,12 +946,26 @@ public class GuiClient extends Application {
 	}
 
 	public void showGameOver(String winner) {
+		Image backgroundImage = new Image(getClass().getResource("/background.png").toExternalForm());
+		ImageView backgroundView = new ImageView(backgroundImage);
+		backgroundView.setFitWidth(width);  // or use scene width binding
+		backgroundView.setFitHeight(height); // or use scene height binding
+		backgroundView.setPreserveRatio(false);
+
+		GaussianBlur blur = new GaussianBlur(20);
+		backgroundView.setEffect(blur);
+
 		if (currentTimer != null) {
 			currentTimer.cancel();
 		}
 
-		Button returnBtn = new Button("Return to Lobby");
+		Button returnBtn = new Button("⬅");
+		returnBtn.setId("back-button");
 		Button rematchBtn = new Button("Rematch");
+		rematchBtn.setId("welcome-button");
+
+		Label winOrLoss = new Label("Game Over! " + winner);
+		winOrLoss.setId("welcome-title");
 
 		returnBtn.setOnAction(e -> {
 			clientConnection.send(new Message(MessageType.RETURN_TO_LOBBY, "", null));
@@ -942,14 +980,24 @@ public class GuiClient extends Application {
 			isMyTurn = false;
 		});
 
-		VBox box = new VBox(10,
-				new Label("Game Over! " + winner),
-				rematchBtn,
-				returnBtn
-		);
+		VBox box = new VBox(10, winOrLoss, rematchBtn, returnBtn);
+
+		HBox topLeftBox = new HBox(returnBtn);
+		topLeftBox.setAlignment(Pos.TOP_LEFT);
+		topLeftBox.setPadding(new Insets(10));
+
 		box.setAlignment(Pos.CENTER);
 		box.setPadding(new Insets(20));
-		sceneMap.put("gameOver", createBaseScene(box));
+
+		BorderPane root = new BorderPane();
+
+		root.setTop(topLeftBox);
+		root.setCenter(box);
+
+		StackPane layered = new StackPane(backgroundView, root); // background + UI layered
+		Scene scene = createBaseScene(layered);
+
+		sceneMap.put("gameOver", scene);
 		mainStage.setScene(sceneMap.get("gameOver"));
 	}
 
